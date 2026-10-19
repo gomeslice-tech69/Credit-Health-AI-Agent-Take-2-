@@ -62,34 +62,141 @@ RATING_COLORS = {
     INSUFFICIENT: "#6e7781",
 }
 
-st.markdown("""
-<style>
-  .block-container { padding-top: 2rem; max-width: 1180px; }
-  .rating-badge {
-      padding: 1.1rem 1.4rem; border-radius: 10px; color: #fff;
-      text-align: center; margin-bottom: 0.4rem;
-  }
-  .rating-badge .label {
-      font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
-      opacity: 0.9;
-  }
-  .rating-badge .value {
-      font-size: 1.75rem; font-weight: 700; line-height: 1.2;
-      white-space: nowrap;   /* "Elevated" must never break as "Elevat ed" */
-  }
-  .metric-note {
-      font-size: 0.8rem; color: #6e7781; margin-top: -0.6rem;
-      margin-bottom: 1rem; line-height: 1.35;
-  }
-  .signal-row { margin-bottom: 0.9rem; line-height: 1.45; }
-  .signal-name { font-weight: 600; }
-  .signal-detail { color: #57606a; font-size: 0.88rem; }
-  .pipeline {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.74rem; color: #6e7781; letter-spacing: 0.02em;
-  }
-</style>
-""", unsafe_allow_html=True)
+# ---------------------------------------------------------------------------
+# Visual identity
+#
+# The same type and colour system the hosted page uses, so the live app and the
+# static version read as one project. Three typefaces, each with a job:
+#
+#   IBM Plex Serif  headings -- institutional, report-like, suits credit work
+#   IBM Plex Sans   body and interface
+#   IBM Plex Mono   every figure, with tabular numerals so digits line up in
+#                   columns. This matters more than it sounds: ratios that
+#                   don't align are genuinely harder to compare down a page.
+#
+# Colours come from .streamlit/config.toml for Streamlit's own chrome, and from
+# the tokens below for everything this file draws.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Visual identity
+#
+# The same type and colour system the hosted page uses, so the live app and
+# the static version read as one project. Three typefaces, each with a job:
+#
+#   IBM Plex Serif  headings -- institutional, report-like, suits credit work
+#   IBM Plex Sans   body and interface
+#   IBM Plex Mono   every figure, with tabular numerals so digits line up in
+#                   columns. Ratios that do not align are genuinely harder to
+#                   compare down a page.
+#
+# NOTE ON THE FORMATTING BELOW: Streamlit renders this string as Markdown
+# before it reaches the browser, and a blank line inside raw HTML ends the
+# HTML block -- everything after it is then printed as visible text. So the
+# CSS is one contiguous block with no blank lines, and the fonts are pulled
+# in with @import rather than <link> elements.
+# ---------------------------------------------------------------------------
+
+st.markdown(
+    "<style>@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap');"
+    """:root {
+--paper: #f7f8fa; --surface: #ffffff; --surface-sunk: #eef1f5;
+--ink: #16202e; --ink-soft: #4a5a6e; --ink-faint: #76859a;
+--rule: #d9dfe8; --rule-strong: #b9c3d1; --steel: #2a5d8f;
+--font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+--font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+--font-figure: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+html, body, [class*="st-"], .stMarkdown, button, input, textarea, select {
+font-family: var(--font-body);
+}
+/* Streamlit draws its icons as ligature glyphs in a Material font. The rule
+above would override that font and print the glyph NAME instead -- the status
+tick renders as the literal word "check". Restore the icon font for anything
+Streamlit marks as an icon. */
+[data-testid*="Icon"], [data-testid*="icon"], .material-icons,
+.material-symbols-rounded, span[class*="material"] {
+font-family: "Material Symbols Rounded", "Material Icons" !important;
+}
+.block-container { padding-top: 2.2rem; max-width: 1140px; }
+h1, h2, h3 { font-family: var(--font-display) !important; }
+h1 { font-weight: 600 !important; letter-spacing: -0.015em; line-height: 1.15 !important; }
+h2 { font-weight: 600 !important; }
+h3 { font-family: var(--font-body) !important; font-weight: 600 !important; }
+[data-testid="stMetricValue"], [data-testid="stMetricDelta"], .stDataFrame, code, .num {
+font-family: var(--font-figure) !important; font-variant-numeric: tabular-nums;
+}
+[data-testid="stMetricValue"] {
+font-size: 1.68rem !important; font-weight: 500 !important; letter-spacing: -0.01em;
+}
+[data-testid="stMetricLabel"] {
+font-size: 0.78rem !important; font-weight: 600 !important;
+color: var(--ink-soft) !important; letter-spacing: 0.02em;
+}
+/* Streamlit truncates metric labels and deltas with an ellipsis when the
+column is narrow, which turned "Net Debt / EBITDA" into "Net Debt / ..." and
+"+1.81x vs prior year" into "+1.81x vs pri...". Let both wrap instead: two
+short lines are readable, half a label is not. */
+[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * ,
+[data-testid="stMetricDelta"], [data-testid="stMetricDelta"] * {
+white-space: normal !important; overflow: visible !important;
+text-overflow: clip !important; line-height: 1.3 !important;
+}
+[data-testid="stMetricLabel"] { min-height: 2.1em; display: flex;
+align-items: flex-start; }
+[data-testid="stMetricDelta"] { font-size: 0.76rem !important; }
+[data-testid="stMetric"] {
+background: var(--surface); border: 1px solid var(--rule);
+border-radius: 4px; padding: 13px 15px 12px;
+}
+[data-testid="stForm"] {
+background: var(--surface); border: 1px solid var(--rule);
+border-radius: 5px; padding: 16px 18px;
+}
+.stTextInput input {
+font-family: var(--font-figure) !important; letter-spacing: 0.08em;
+text-transform: uppercase; border-radius: 3px !important;
+}
+.stButton button, [data-testid="stFormSubmitButton"] button {
+border-radius: 3px; font-weight: 600; letter-spacing: 0.01em;
+}
+.rating-badge {
+padding: 1.15rem 1.3rem; border-radius: 5px; color: #fff;
+text-align: center; margin-bottom: 0.45rem;
+}
+.rating-badge .label {
+font-size: 0.7rem; letter-spacing: 0.13em; text-transform: uppercase;
+opacity: 0.88; font-weight: 600;
+}
+.rating-badge .value {
+font-family: var(--font-display); font-size: 1.85rem; font-weight: 600;
+line-height: 1.2; white-space: nowrap;
+}
+.metric-note {
+font-size: 0.79rem; color: var(--ink-faint); margin-top: -0.35rem;
+margin-bottom: 0.95rem; line-height: 1.4;
+}
+.signal-row { margin-bottom: 0.85rem; line-height: 1.45; }
+.signal-name { font-weight: 600; }
+.signal-detail { color: var(--ink-soft); font-size: 0.87rem; }
+.pipeline {
+font-family: var(--font-figure); font-size: 0.72rem; color: var(--ink-soft);
+background: var(--surface); border: 1px solid var(--rule);
+border-radius: 3px; padding: 9px 11px;
+}
+hr { border-color: var(--rule) !important; margin: 1.6rem 0 !important; }
+[data-testid="stSidebar"] { border-right: 1px solid var(--rule); }
+[data-testid="stSidebar"] h3 {
+font-family: var(--font-display) !important; font-size: 0.98rem !important;
+}
+[data-testid="stExpander"] {
+border: 1px solid var(--rule) !important; border-radius: 4px !important;
+}
+[data-testid="stCaptionContainer"] { color: var(--ink-faint); }
+@media (prefers-reduced-motion: reduce) {
+* { transition: none !important; animation: none !important; }
+}</style>""",
+    unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------

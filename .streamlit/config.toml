@@ -1,7 +1,20 @@
-# Streamlit configuration. Safe to delete -- these are cosmetic defaults only.
+# Visual theme. These are the same colours the hosted page uses, so the live
+# app and the static version read as one project rather than two.
+#
+# Streamlit's own theme covers the chrome it draws (sidebar, widgets, inputs).
+# Typography and the custom components are styled by the CSS block in app.py.
+
 [theme]
 base = "light"
-primaryColor = "#1f6feb"
+primaryColor = "#2a5d8f"              # steel blue: buttons, slider, focus
+backgroundColor = "#f7f8fa"           # paper: a near-white with a blue bias
+secondaryBackgroundColor = "#eef1f5"  # sunken surfaces: sidebar, expanders
+textColor = "#16202e"                 # ink
+font = "serif"                        # headings pick this up; body is set in CSS
 
 [browser]
 gatherUsageStats = false
+
+[server]
+# Streamlit Cloud sets its own port; this only affects local runs.
+headless = true
