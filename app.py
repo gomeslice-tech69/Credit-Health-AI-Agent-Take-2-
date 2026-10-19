@@ -186,6 +186,15 @@ text-transform: uppercase; border-radius: 3px !important;
 .stButton button, [data-testid="stFormSubmitButton"] button {
 border-radius: 3px; font-weight: 600; letter-spacing: 0.01em;
 }
+/* Streamlit truncates button labels with an ellipsis in a narrow column, so
+"Analyze Company" became "Analyze Com...". Let the label wrap to two lines
+instead and give the button room for it. */
+.stButton button p, [data-testid="stFormSubmitButton"] button p,
+.stButton button div, [data-testid="stFormSubmitButton"] button div {
+white-space: normal !important; overflow: visible !important;
+text-overflow: clip !important; line-height: 1.25 !important;
+}
+[data-testid="stFormSubmitButton"] button { min-height: 2.9rem; height: auto; }
 .rating-badge {
 padding: 1.15rem 1.3rem; border-radius: 5px; color: #fff;
 text-align: center; margin-bottom: 0.45rem;
