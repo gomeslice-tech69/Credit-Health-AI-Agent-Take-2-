@@ -114,6 +114,17 @@ LONG_TERM_DEBT_TAGS = [
     "LongTermDebtNoncurrent",
     "LongTermDebt",
 ]
+# Extended balance-sheet set, used only by the Altman Z''-score.
+TOTAL_ASSETS_TAGS = ["Assets"]
+CURRENT_ASSETS_TAGS = ["AssetsCurrent"]
+CURRENT_LIABILITIES_TAGS = ["LiabilitiesCurrent"]
+RETAINED_EARNINGS_TAGS = ["RetainedEarningsAccumulatedDeficit"]
+TOTAL_LIABILITIES_TAGS = ["Liabilities"]
+EQUITY_TAGS = [
+    "StockholdersEquity",
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+]
+
 CURRENT_DEBT_TAGS = [
     "LongTermDebtAndCapitalLeaseObligationsCurrent",
     "LongTermDebtCurrent",
@@ -377,6 +388,21 @@ def load_edgar_history(ticker: str, max_years: int = 5) -> FinancialHistory:
             f"Amortization, using the reported tags OperatingIncomeLoss and "
             f"{', '.join(dep_tags)}.")
 
+    total_assets, _ = _annual_series(gaap, TOTAL_ASSETS_TAGS, instant=True)
+    current_assets, _ = _annual_series(gaap, CURRENT_ASSETS_TAGS, instant=True)
+    current_liabilities, _ = _annual_series(
+        gaap, CURRENT_LIABILITIES_TAGS, instant=True)
+    retained, _ = _annual_series(gaap, RETAINED_EARNINGS_TAGS, instant=True)
+    total_liabilities, _ = _annual_series(
+        gaap, TOTAL_LIABILITIES_TAGS, instant=True)
+    equity, _ = _annual_series(gaap, EQUITY_TAGS, instant=True)
+
+    # Many filers tag assets and equity but not total liabilities. The
+    # accounting identity (assets = liabilities + equity) gives it exactly,
+    # so this is arithmetic on reported figures rather than an estimate.
+    for end in set(total_assets) & set(equity):
+        total_liabilities.setdefault(end, total_assets[end] - equity[end])
+
     total_debt = _sum_series(lt_debt, cur_debt)
     if total_debt:
         notes["total_debt"] = (
@@ -422,6 +448,13 @@ def load_edgar_history(ticker: str, max_years: int = 5) -> FinancialHistory:
             cash=at(cash, end),
             total_debt=at(total_debt, end),
             operating_cash_flow=at(ocf, end),
+            total_assets=at(total_assets, end),
+            current_assets=at(current_assets, end),
+            current_liabilities=at(current_liabilities, end),
+            retained_earnings=at(retained, end),
+            total_liabilities=at(total_liabilities, end),
+            shareholders_equity=at(equity, end),
+            operating_income=at(operating_income, end),
         ))
 
     return FinancialHistory(

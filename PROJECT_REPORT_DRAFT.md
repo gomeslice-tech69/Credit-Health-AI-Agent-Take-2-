@@ -2,8 +2,6 @@
 
 **Big Data Project — Rough Draft**
 
-Author: **_[YOUR NAME — fill this in]_**
-Course / Section: **_[FILL THIS IN]_**
 Date: 19 October 2026
 Live demo: https://restructuring-watch.streamlit.app
 Code: https://github.com/gomeslice-tech69/Credit-Health-AI-Agent-Take-2-
@@ -376,6 +374,63 @@ reports this as unavailable instead of guessing — and it is the same company
 that produces the misleading 39x reading discussed in Section 7. The two
 findings are the same underlying problem seen from different angles.
 
+## 9c. A published second opinion: the Altman Z''-score
+
+The five-factor rating in Section 6 is this project's own invention. Its
+thresholds are defensible credit conventions, but nothing validates them
+against real outcomes. The Altman Z-score has been in use since 1968, is
+taught in every corporate finance course, and was fitted against companies
+that actually did and did not fail. Running both and showing them side by side
+is more honest than either alone.
+
+    Z'' = 6.56(WC/TA) + 3.26(RE/TA) + 6.72(EBIT/TA) + 1.05(Equity/TL)
+
+The coefficients are Altman's published values. Nothing is fitted here — that
+is the point of using an outside model. The Z'' variant is used because it
+drops the original formula's sales-to-assets term and uses book rather than
+market equity, which makes it valid across industries and removes any need for
+share-price data.
+
+### The two measure different things
+
+| | Our rating | Altman Z'' |
+|---|---|---|
+| Question | Can it keep paying what it owes? | Has it accumulated enough value to absorb losses? |
+| Reads | leverage, coverage, cash flow, earnings | working capital, retained earnings, asset productivity, equity |
+| Nature | **debt service** | **balance sheet** |
+
+Agreement is reassurance. Disagreement is information, not error.
+
+### Results
+
+| Ticker | Our rating | Z'' | Altman zone | |
+|---|---|---|---|---|
+| AAL | Elevated | −1.54 | Distress | agree |
+| CCL | Moderate | 0.09 | Distress | agree |
+| KO | Low | 4.55 | Safe | agree |
+| MSFT | Low | 4.59 | Safe | agree |
+| NKE | Moderate | 3.37 | Safe | **disagree** |
+| KSS | Low | 1.58 | Grey | **disagree** |
+
+The disagreements are the interesting cases. **Nike** is flagged Moderate by
+our rating because EBITDA fell 32% and interest expense was unavailable, but
+Altman sees a strong balance sheet with healthy working capital and large
+retained earnings. Both are right about what they measure: earnings are
+deteriorating while the balance sheet remains well capitalised. A company in
+that position has time to fix the earnings problem, which is precisely what
+our debt-service view cannot see.
+
+### Deliberate exclusions
+
+Banks and insurers are refused rather than scored. Altman's model was never
+fitted on financial institutions, whose balance sheets work differently enough
+that the ratios lose their meaning — deposits are liabilities in a sense that
+has nothing to do with solvency risk, and working capital is not a meaningful
+concept for them. A test enforces this.
+
+A second test asserts that `rating.py` never imports the Z-score. If the main
+rating consulted it, "two independent methods agree" would be circular.
+
 ## 10. Limitations
 
 Knowing what the tool cannot do is most of understanding it.
@@ -464,6 +519,7 @@ python3 -m unittest discover -s tests -v
 | `screener/ai.py` | Optional Claude rewording layer |
 | `screener/report.py` | Plain-text report |
 | `screener/peers.py` | Median and percentile calculations (Section 9) |
+| `screener/altman.py` | The published Altman Z''-score (Section 9c) |
 | `build_web.py` | Injects exported data into the hosted page template |
 | `build_peer_cache.py` | Builds the sector benchmark the live app uses |
 | `data/peer_cache.json` | The committed benchmark (36 companies, 7 sectors) |

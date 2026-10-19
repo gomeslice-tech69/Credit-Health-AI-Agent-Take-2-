@@ -23,6 +23,9 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("SEC_USER_AGENT", "test-suite test@example.com")
 
+from screener import altman                                        # noqa: E402
+from screener.altman import (compute_z_score, components,          # noqa: E402
+                             is_meaningful_for)
 from screener import edgar                                         # noqa: E402
 from screener import metrics as M                                   # noqa: E402
 from screener.models import FinancialHistory, FiscalYear            # noqa: E402
@@ -618,3 +621,88 @@ class TestSourcesAreReachableEverywhere(unittest.TestCase):
                     self.assertNotIn("Unknown source", str(exc))
                 except Exception:
                     pass  # network or missing package: not what this tests
+
+
+class TestAltmanZScore(unittest.TestCase):
+    """The published Z''-score used as a second opinion on our own rating."""
+
+    def _year(self, **kw):
+        base = dict(year=2025, total_assets=1000.0, current_assets=400.0,
+                    current_liabilities=200.0, retained_earnings=300.0,
+                    operating_income=120.0, total_liabilities=500.0,
+                    shareholders_equity=500.0)
+        base.update(kw)
+        return FiscalYear(**base)
+
+    def test_formula_matches_altman_published_coefficients(self):
+        """Worked by hand: WC/TA=0.2, RE/TA=0.3, EBIT/TA=0.12, EQ/TL=1.0
+        -> 6.56(0.2) + 3.26(0.3) + 6.72(0.12) + 1.05(1.0)"""
+        z = compute_z_score(self._year())
+        expected = 6.56 * 0.2 + 3.26 * 0.3 + 6.72 * 0.12 + 1.05 * 1.0
+        self.assertAlmostEqual(z.score, expected, places=6)
+        self.assertEqual(z.zone, "Safe zone")
+
+    def test_zones_follow_the_published_thresholds(self):
+        self.assertEqual(altman.zone_for(2.61), "Safe zone")
+        self.assertEqual(altman.zone_for(2.6), "Grey zone")
+        self.assertEqual(altman.zone_for(1.1), "Grey zone")
+        self.assertEqual(altman.zone_for(1.09), "Distress zone")
+        self.assertEqual(altman.zone_for(None), "Not computable")
+
+    def test_distressed_balance_sheet_scores_in_the_distress_zone(self):
+        """Negative working capital, lifetime losses and negative equity --
+        the American Airlines shape."""
+        z = compute_z_score(self._year(
+            current_assets=100.0, current_liabilities=400.0,
+            retained_earnings=-200.0, shareholders_equity=-50.0,
+            total_liabilities=1050.0, operating_income=20.0))
+        self.assertLess(z.score, 1.1)
+        self.assertEqual(z.zone, "Distress zone")
+
+    def test_missing_balance_sheet_refuses_and_names_what_is_missing(self):
+        z = compute_z_score(self._year(retained_earnings=None,
+                                       total_assets=None))
+        self.assertFalse(z.available)
+        self.assertIn("retained earnings", z.reason)
+        self.assertIn("total assets", z.reason)
+
+    def test_zero_assets_refuses_rather_than_dividing(self):
+        z = compute_z_score(self._year(total_assets=0.0))
+        self.assertFalse(z.available)
+        self.assertIn("assets", z.reason.lower())
+
+    def test_zero_liabilities_refuses(self):
+        z = compute_z_score(self._year(total_liabilities=0.0))
+        self.assertFalse(z.available)
+
+    def test_components_sum_to_the_score(self):
+        """Every term shown must add up to the number displayed, or the
+        breakdown is decoration rather than an explanation."""
+        z = compute_z_score(self._year())
+        total = sum(c["contribution"] for c in components(z))
+        self.assertAlmostEqual(total, z.score, places=6)
+
+    def test_components_empty_when_score_unavailable(self):
+        self.assertEqual(components(compute_z_score(self._year(
+            total_assets=None))), [])
+
+    def test_banks_and_insurers_are_excluded(self):
+        """Altman was never fitted on financial firms; their balance sheets
+        do not carry the same meaning."""
+        for sector in ("Financial Services", "Banks", "Insurance"):
+            ok, reason = is_meaningful_for(sector)
+            self.assertFalse(ok, sector)
+            self.assertIn("Altman", reason)
+
+    def test_industrial_sectors_are_allowed(self):
+        for sector in ("Industrials", "Technology", None):
+            ok, _ = is_meaningful_for(sector)
+            self.assertTrue(ok)
+
+    def test_the_rating_does_not_consult_the_z_score(self):
+        """The Z-score must stay an independent cross-check. If rating.py ever
+        imported it, 'two methods agreeing' would become circular."""
+        import inspect
+        from screener import rating as rating_module
+        source = inspect.getsource(rating_module)
+        self.assertNotIn("altman", source.lower())

@@ -34,6 +34,8 @@ from screener import ai
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import YearMetrics, compute_all_metrics
 from screener.models import FinancialHistory
+from screener.altman import (compute_z_score, components,
+                             interpretation, is_meaningful_for)
 from screener.peers import (PeerCacheUnavailable, compare_to_sector,
                             load_peer_cache)
 from screener.narrative import (build_narrative, restructuring_watch,
@@ -674,6 +676,89 @@ def section_rating(analysis: Dict[str, object]) -> None:
         } for f in rating.factors]
         st.dataframe(pd.DataFrame(rows), hide_index=True,
                      use_container_width=True)
+
+
+def section_altman(analysis: Dict[str, object]) -> None:
+    """A published second opinion, shown beside our own rating.
+
+    Deliberately placed AFTER the rating rather than beside it: this is a
+    cross-check on a conclusion already reached, not an input to it. Nothing
+    in rating.py consults the Z-score.
+    """
+    history = analysis["history"]
+    rating = analysis["rating"]
+    years = history.sorted_years()
+
+    st.markdown("### Second opinion: Altman Z''-score")
+
+    ok, why_not = is_meaningful_for(history.sector)
+    if not ok:
+        st.info(why_not)
+        return
+
+    z = compute_z_score(years[-1])
+    st.caption(
+        "Our rating measures **debt service** — can this company keep paying "
+        "what it owes? The Z-score measures the **balance sheet** — has it "
+        "accumulated enough value to absorb losses? Published by Edward "
+        "Altman in 1968 and taught ever since, so it is an outside check "
+        "rather than a calculation of this project's own.")
+
+    if not z.available:
+        st.info(z.reason)
+        return
+
+    zone_colour = {"Safe zone": LOW, "Grey zone": MODERATE,
+                   "Distress zone": ELEVATED}.get(z.zone, MODERATE)
+    left, right = st.columns([1.15, 2], gap="large")
+    with left:
+        st.markdown(
+            f"""<div class="rating-badge" style="background:{RATING_COLORS[zone_colour]}">
+                  <div class="label">Altman Z&apos;&apos;</div>
+                  <div class="value">{z.score:.2f}</div>
+                </div>""", unsafe_allow_html=True)
+        st.caption(f"{z.zone} · thresholds 1.1 and 2.6")
+    with right:
+        # Whether the two methods agree is the most useful line on the page,
+        # so it leads.
+        ours_stressed = rating.rating in (MODERATE, ELEVATED)
+        z_stressed = z.zone != "Safe zone"
+        if ours_stressed == z_stressed:
+            st.success(
+                f"**The two measures agree.** Our rating says "
+                f"{rating.rating.lower()} and the Z-score puts the company in "
+                f"the {z.zone.lower()}. Two different methods reaching the "
+                "same view is more reassuring than either alone.")
+        else:
+            st.warning(
+                f"**The two measures disagree.** Our rating says "
+                f"{rating.rating.lower()}, while the Z-score puts the company "
+                f"in the {z.zone.lower()}. They measure different things, so "
+                "this is information rather than an error — one is reading "
+                "debt service, the other the balance sheet. Worth "
+                "understanding which picture fits this company better.")
+        st.write(interpretation(z))
+
+    with st.expander("How this score is built (every term)"):
+        st.markdown(
+            "**Z'' = 6.56·X₁ + 3.26·X₂ + 6.72·X₃ + 1.05·X₄**\n\n"
+            "The coefficients are Altman's published values; nothing here was "
+            "fitted by this project. That is the point of using an outside "
+            "model.")
+        rows = [{
+            "Term": c["label"],
+            "Ratio": f"{c['ratio']:.3f}",
+            "Weight": f"{c['weight']:.2f}",
+            "Contribution": f"{c['contribution']:+.2f}",
+            "What it measures": c["explanation"],
+        } for c in components(z)]
+        st.dataframe(pd.DataFrame(rows), hide_index=True,
+                     use_container_width=True)
+        st.caption(
+            "This uses the Z'' variant, which drops the original formula's "
+            "sales-to-assets term and uses book rather than market equity. "
+            "That makes it usable across industries and without share-price "
+            "data; the original 1968 Z is really only valid for manufacturers.")
 
 
 def section_metrics(analysis: Dict[str, object]) -> None:
@@ -1351,6 +1436,8 @@ def main() -> None:
     section_metrics(analysis)
     st.markdown("---")
     section_peers(analysis)
+    st.markdown("---")
+    section_altman(analysis)
     st.markdown("---")
     section_explanation(analysis)
     st.markdown("---")

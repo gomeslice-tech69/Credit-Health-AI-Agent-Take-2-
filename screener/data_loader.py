@@ -150,6 +150,15 @@ _YF_LABELS = {
     "current_debt": ["Current Debt", "Current Debt And Capital Lease Obligation"],
     "operating_cash_flow": ["Operating Cash Flow", "Cash Flow From Continuing Operating Activities"],
     "capex": ["Capital Expenditure", "Purchase Of PPE"],
+    # Extended balance-sheet set, used only by the Altman Z''-score.
+    "total_assets": ["Total Assets"],
+    "current_assets": ["Current Assets", "Total Current Assets"],
+    "current_liabilities": ["Current Liabilities", "Total Current Liabilities"],
+    "retained_earnings": ["Retained Earnings"],
+    "total_liabilities": ["Total Liabilities Net Minority Interest",
+                          "Total Liabilities"],
+    "shareholders_equity": ["Stockholders Equity",
+                            "Total Equity Gross Minority Interest"],
 }
 
 
@@ -269,6 +278,15 @@ def _load_yfinance(ticker: str, max_years: int = 5) -> FinancialHistory:
         if capex is not None:
             capex = abs(capex)  # store as positive "money spent"
 
+        # Total liabilities may be absent; the accounting identity
+        # (assets = liabilities + equity) supplies it exactly, not by estimate.
+        total_assets = val("total_assets", balance)
+        equity = val("shareholders_equity", balance)
+        total_liabilities = val("total_liabilities", balance)
+        if total_liabilities is None and total_assets is not None \
+                and equity is not None:
+            total_liabilities = total_assets - equity
+
         years.append(
             FiscalYear(
                 year=int(getattr(col, "year", 0)) or 0,
@@ -279,6 +297,13 @@ def _load_yfinance(ticker: str, max_years: int = 5) -> FinancialHistory:
                 total_debt=total_debt,
                 operating_cash_flow=val("operating_cash_flow", cashflow),
                 capex=capex,
+                total_assets=total_assets,
+                current_assets=val("current_assets", balance),
+                current_liabilities=val("current_liabilities", balance),
+                retained_earnings=val("retained_earnings", balance),
+                total_liabilities=total_liabilities,
+                shareholders_equity=equity,
+                operating_income=val("operating_income", income),
             )
         )
 

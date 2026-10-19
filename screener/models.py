@@ -69,6 +69,23 @@ class FiscalYear:
     # report capex as negative; data_loader flips the sign so the formula
     # FCF = OCF - capex reads the way the textbook writes it.
 
+    # --- Balance sheet, extended set -------------------------------------
+    # Not used by the six core credit metrics. These exist for the Altman
+    # Z''-score (screener/altman.py), which measures the whole balance sheet
+    # rather than debt service. All optional: a source that cannot supply them
+    # leaves the Z-score unavailable rather than wrong.
+    total_assets: Optional[float] = None
+    current_assets: Optional[float] = None
+    current_liabilities: Optional[float] = None
+    retained_earnings: Optional[float] = None
+    # Cumulative profit kept in the business since founding. Negative means
+    # lifetime losses exceed lifetime profits, which is why Altman weights it.
+    total_liabilities: Optional[float] = None
+    shareholders_equity: Optional[float] = None
+    operating_income: Optional[float] = None
+    # EBIT. Distinct from EBITDA: depreciation and amortization are NOT added
+    # back, so it is the stricter measure Altman's formula calls for.
+
     def missing_fields(self) -> List[str]:
         """Names of the fields we have no value for. Used by the report so
         the reader can see exactly what the analysis is blind to."""
