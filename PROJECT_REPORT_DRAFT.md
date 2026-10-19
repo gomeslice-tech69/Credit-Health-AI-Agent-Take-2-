@@ -342,6 +342,36 @@ distinguished only by period length. Counting a quarter as a year would
 understate revenue roughly fourfold. Periods of 330–400 days count as annual,
 a range wide enough for the 52- and 53-week fiscal years retailers use.
 
+### Coverage, measured
+
+Tested across the 34 benchmark companies:
+
+| | |
+|---|---|
+| Complete | 30 |
+| Partial | 3 |
+| Unparseable | 1 |
+
+Reaching 30 required widening the tag lists after seeing real output. Delta
+tags neither `InterestExpense` nor `InterestExpenseNonoperating`, so coverage
+was blank until net and cash-paid variants were added. Verizon's capex sits
+under `PaymentsToAcquireOtherProductiveAssets` alone. IBM and Pfizer never tag
+`OperatingIncomeLoss` at all, so EBIT is rebuilt from pre-tax income plus
+interest expense — the definition of EBIT read backwards.
+
+The four remaining gaps are honest data absences rather than defects, and each
+is reported as unavailable rather than guessed:
+
+- **Ford and GM** give no total debt. Both tag captive-finance borrowing in
+  company-specific extension namespaces outside `us-gaap`. This is the same
+  underlying problem as the 39x reading in Section 7, seen from another angle.
+- **Apple** gives no interest expense, netting it against interest income.
+- **Exxon** cannot be parsed at all; the error directs the reader to Yahoo.
+
+This is the honest cost of using raw filings: filers have real latitude in
+which tags they use, and no fixed list covers every company. The alternative —
+guessing at a figure when the expected tag is absent — would be worse.
+
 ### A finding: the two sources disagree about total debt
 
 For American Airlines' 2025 fiscal year:

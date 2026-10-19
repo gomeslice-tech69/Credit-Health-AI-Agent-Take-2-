@@ -747,3 +747,45 @@ class TestOfflineDataSupportsEveryFeature(unittest.TestCase):
         scores = [compute_z_score(fy).score
                   for fy in load_history("HEALTHY", source="local").sorted_years()]
         self.assertTrue(all(altman.zone_for(s) == "Safe zone" for s in scores))
+
+
+class TestEdgarTagCoverage(unittest.TestCase):
+    """Filers choose among valid tags for the same concept, so the candidate
+    lists have to be broad. Each tag below was added after a real company
+    returned a blank field without it; these tests stop them being dropped."""
+
+    def test_interest_covers_net_and_cash_paid_variants(self):
+        """Delta tags neither InterestExpense nor InterestExpenseNonoperating;
+        without the net and cash-paid fallbacks its coverage was blank."""
+        for tag in ("InterestExpense", "InterestExpenseNonoperating",
+                    "InterestIncomeExpenseNonoperatingNet", "InterestPaidNet"):
+            self.assertIn(tag, edgar.INTEREST_TAGS)
+
+    def test_capex_covers_the_other_productive_assets_variant(self):
+        """Verizon's capex sits under this tag alone."""
+        self.assertIn("PaymentsToAcquireOtherProductiveAssets",
+                      edgar.CAPEX_TAGS)
+
+    def test_pretax_fallback_exists_for_filers_without_operating_income(self):
+        """IBM and Pfizer never tag OperatingIncomeLoss, so EBIT is rebuilt
+        from pre-tax income plus interest -- the definition of EBIT read
+        backwards."""
+        self.assertTrue(edgar.PRETAX_INCOME_TAGS)
+
+    def test_debt_includes_finance_leases(self):
+        """Credit analysis treats finance leases as debt: they are fixed
+        contractual payment obligations like any borrowing."""
+        self.assertIn("LongTermDebtAndCapitalLeaseObligations",
+                      edgar.LONG_TERM_DEBT_TAGS)
+        self.assertIn("LongTermDebtAndCapitalLeaseObligationsCurrent",
+                      edgar.CURRENT_DEBT_TAGS)
+
+    def test_unparseable_filer_points_at_the_alternative_source(self):
+        """A dead end must tell the reader what to do next, not just fail."""
+        gaap = {"facts": {"us-gaap": {"SomethingUnrecognised": {"units": {}}}}}
+        import unittest.mock as mock
+        with mock.patch.object(edgar, "_get_json", return_value=gaap), \
+             mock.patch.object(edgar, "ticker_to_cik", return_value=(1, "X")):
+            with self.assertRaises(edgar.EdgarError) as caught:
+                edgar.load_edgar_history("XXXX")
+        self.assertIn("Yahoo", str(caught.exception))

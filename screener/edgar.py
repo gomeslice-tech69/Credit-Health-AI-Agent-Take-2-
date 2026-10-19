@@ -76,6 +76,14 @@ REVENUE_TAGS = [
     "SalesRevenueGoodsNet",
 ]
 OPERATING_INCOME_TAGS = ["OperatingIncomeLoss"]
+
+# Some filers (IBM, Pfizer) never tag OperatingIncomeLoss. For them EBIT is
+# rebuilt from pre-tax income plus interest expense -- which is the definition
+# of EBIT, read backwards. Both inputs are reported figures.
+PRETAX_INCOME_TAGS = [
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+]
 DEPRECIATION_TAGS = [
     "DepreciationDepletionAndAmortization",
     "DepreciationAmortizationAndAccretionNet",
@@ -90,7 +98,15 @@ INTEREST_TAGS = [
     "InterestExpenseNonoperating",
     "InterestExpenseDebt",
     "InterestAndDebtExpense",
+    # Net interest tags: income netted against expense, so the figure can be
+    # negative. The loader takes the absolute value, which treats it as net
+    # interest cost. Delta and several others tag nothing else.
+    "InterestIncomeExpenseNonoperatingNet",
     "InterestIncomeExpenseNet",
+    # Cash interest actually paid, from the cash flow statement. A last resort
+    # and not identical to accrued interest expense, but far closer than
+    # leaving coverage uncomputable.
+    "InterestPaidNet",
 ]
 OCF_TAGS = [
     "NetCashProvidedByUsedInOperatingActivities",
@@ -99,6 +115,7 @@ OCF_TAGS = [
 CAPEX_TAGS = [
     "PaymentsToAcquirePropertyPlantAndEquipment",
     "PaymentsToAcquireProductiveAssets",
+    "PaymentsToAcquireOtherProductiveAssets",
     "PaymentsForCapitalImprovements",
 ]
 CASH_TAGS = [
@@ -373,6 +390,19 @@ def load_edgar_history(ticker: str, max_years: int = 5) -> FinancialHistory:
     lt_debt, lt_tags = _annual_series(gaap, LONG_TERM_DEBT_TAGS, instant=True)
     cur_debt, cur_tags = _annual_series(gaap, CURRENT_DEBT_TAGS, instant=True)
 
+    # Where operating income is untagged, rebuild EBIT from its definition:
+    # pre-tax income plus interest expense. IBM and Pfizer need this.
+    if not operating_income:
+        pretax, pretax_tags = _annual_series(
+            gaap, PRETAX_INCOME_TAGS, instant=False)
+        for end in set(pretax) & set(interest):
+            operating_income[end] = pretax[end] + abs(interest[end])
+        if operating_income:
+            notes["operating_income"] = (
+                "This filer does not tag OperatingIncomeLoss. EBIT was "
+                "rebuilt as pre-tax income plus interest expense, using "
+                f"{', '.join(pretax_tags)}.")
+
     # EBITDA is not a GAAP concept, so no filer reports it as a tag. It is
     # rebuilt from its definition: operating income plus depreciation and
     # amortization. Both inputs are reported figures, so this is a disclosed
@@ -421,8 +451,10 @@ def load_edgar_history(ticker: str, max_years: int = 5) -> FinancialHistory:
     if not periods:
         raise EdgarError(
             f"No annual figures could be extracted for {ticker.upper()}. The "
-            "company files with the SEC but does not use the XBRL tags this "
-            "tool looks for.")
+            "company files with the SEC, but tags its statements with concepts "
+            "this tool does not recognise — filers have considerable latitude "
+            "in which XBRL tags they use.\n\n"
+            "Switch the data source to Yahoo Finance for this company.")
     periods = periods[-max_years:]
 
     scale = 1e6  # report in millions, as the rest of the project does
