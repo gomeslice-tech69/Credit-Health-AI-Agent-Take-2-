@@ -23,6 +23,7 @@ The pipeline the dashboard displays, in order:
 
 from __future__ import annotations
 
+import os
 from typing import Dict, List, Optional
 
 import altair as alt
@@ -46,9 +47,16 @@ from screener.signals import evaluate_signals
 # Page setup
 # ---------------------------------------------------------------------------
 
+# The browser-tab icon. A drawn mark rather than an emoji; regenerate it with
+# `python3 make_favicon.py`. Falls back to an emoji if the file is missing, so
+# a fresh clone still runs.
+_ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "assets", "favicon.png")
+PAGE_ICON = _ICON_PATH if os.path.exists(_ICON_PATH) else "\U0001F4C9"
+
 st.set_page_config(
     page_title="Credit Health & Restructuring Watch Agent",
-    page_icon="📊",
+    page_icon=PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -97,17 +105,35 @@ RATING_COLORS = {
 # in with @import rather than <link> elements.
 # ---------------------------------------------------------------------------
 
-st.markdown(
-    "<style>@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap');"
-    """:root {
---paper: #f7f8fa; --surface: #ffffff; --surface-sunk: #eef1f5;
---ink: #16202e; --ink-soft: #4a5a6e; --ink-faint: #76859a;
---rule: #d9dfe8; --rule-strong: #b9c3d1; --steel: #2a5d8f;
---font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
---font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
---font-figure: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+# Two palettes. Streamlit 1.50 holds only one theme at a time and exposes no
+# CSS variables of its own, so the toggle below overrides both our tokens and
+# Streamlit's own chrome. Light is the default: a teacher reading this in
+# daylight is the common case, and dark is one click away for a darkened room.
+THEMES = {
+    "Light": {
+        "paper": "#f7f8fa", "surface": "#ffffff", "sunk": "#eef1f5",
+        "ink": "#16202e", "ink_soft": "#4a5a6e", "ink_faint": "#76859a",
+        "rule": "#d9dfe8", "rule_strong": "#b9c3d1", "steel": "#2a5d8f",
+        "scheme": "light",
+    },
+    "Dark": {
+        "paper": "#0e141c", "surface": "#161e29", "sunk": "#1d2733",
+        "ink": "#e8edf4", "ink_soft": "#a8b5c6", "ink_faint": "#7c8a9c",
+        "rule": "#2a3644", "rule_strong": "#3d4c5e", "steel": "#74aae0",
+        "scheme": "dark",
+    },
 }
-html, body, [class*="st-"], .stMarkdown, button, input, textarea, select {
+
+FONT_IMPORT = ("@import url('https://fonts.googleapis.com/css2?"
+               "family=IBM+Plex+Mono:wght@400;500;600&"
+               "family=IBM+Plex+Sans:wght@400;500;600;700&"
+               "family=IBM+Plex+Serif:wght@500;600&display=swap');")
+
+# Streamlit renders this string as Markdown before it reaches the browser, and
+# a blank line inside raw HTML ends the HTML block -- everything after it would
+# then print to the page as visible text. So the CSS stays one contiguous block
+# with no blank lines, and the fonts arrive by @import rather than <link>.
+CSS_RULES = """html, body, [class*="st-"], .stMarkdown, button, input, textarea, select {
 font-family: var(--font-body);
 }
 /* Streamlit draws its icons as ligature glyphs in a Material font. The rule
@@ -195,8 +221,48 @@ border: 1px solid var(--rule) !important; border-radius: 4px !important;
 [data-testid="stCaptionContainer"] { color: var(--ink-faint); }
 @media (prefers-reduced-motion: reduce) {
 * { transition: none !important; animation: none !important; }
-}</style>""",
-    unsafe_allow_html=True)
+}"""
+
+
+def inject_theme(mode: str) -> None:
+    """Apply the chosen palette to our components and to Streamlit's chrome."""
+    t = THEMES.get(mode, THEMES["Light"])
+    tokens = (
+        ":root{"
+        f"--paper:{t['paper']};--surface:{t['surface']};"
+        f"--surface-sunk:{t['sunk']};--ink:{t['ink']};"
+        f"--ink-soft:{t['ink_soft']};--ink-faint:{t['ink_faint']};"
+        f"--rule:{t['rule']};--rule-strong:{t['rule_strong']};"
+        f"--steel:{t['steel']};"
+        '--font-display:"IBM Plex Serif",Georgia,serif;'
+        '--font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;'
+        '--font-figure:"IBM Plex Mono",ui-monospace,Menlo,monospace;'
+        f"color-scheme:{t['scheme']};"
+        "}"
+    )
+    # Streamlit paints its own surfaces, so the chrome has to be repainted too
+    # or the page ends up half dark and half light.
+    chrome = (
+        "[data-testid='stApp'],[data-testid='stAppViewContainer'],"
+        ".stApp{background:var(--paper)!important;color:var(--ink)!important;}"
+        "[data-testid='stHeader']{background:transparent!important;}"
+        "[data-testid='stSidebar']{background:var(--surface-sunk)!important;}"
+        "[data-testid='stSidebar'] *,.stMarkdown,.stMarkdown p,"
+        "h1,h2,h3,h4,label,li{color:var(--ink)!important;}"
+        "[data-testid='stCaptionContainer'],[data-testid='stCaptionContainer'] *"
+        "{color:var(--ink-faint)!important;}"
+        "[data-testid='stMetric'],[data-testid='stForm']"
+        "{background:var(--surface)!important;border-color:var(--rule)!important;}"
+        "[data-testid='stMetricValue']{color:var(--ink)!important;}"
+        "[data-testid='stExpander']{background:var(--surface)!important;"
+        "border-color:var(--rule)!important;}"
+        ".stTextInput input,.stSelectbox div[data-baseweb]{"
+        "background:var(--surface)!important;color:var(--ink)!important;"
+        "border-color:var(--rule-strong)!important;}"
+        ".pipeline{background:var(--surface)!important;}"
+    )
+    st.markdown("<style>" + FONT_IMPORT + tokens + CSS_RULES + chrome + "</style>",
+                unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1110,6 +1176,14 @@ def section_limitations(analysis: Dict[str, object]) -> None:
 def render_sidebar() -> Dict[str, object]:
     st.sidebar.markdown("### Settings")
 
+    # Read before anything else draws, so the whole page renders in one theme.
+    theme = st.sidebar.radio(
+        "Appearance", list(THEMES.keys()), horizontal=True,
+        key="theme_mode",
+        help="Dark reads better on a projector in a darkened room; light "
+             "reads better on paper-white screens and in daylight.")
+    inject_theme(theme)
+
     source_label = st.sidebar.radio(
         "Data source",
         ["Yahoo Finance (live)", "Local file (offline)"],
@@ -1146,7 +1220,8 @@ def render_sidebar() -> Dict[str, object]:
         "model, when enabled, only describes the result — so the numbers are "
         "identical on every run.")
 
-    return {"source": source, "years": years, "use_claude": use_claude}
+    return {"source": source, "years": years,
+            "use_claude": use_claude, "theme": theme}
 
 
 # ---------------------------------------------------------------------------
@@ -1154,6 +1229,9 @@ def render_sidebar() -> Dict[str, object]:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    # Paint the stored theme before any widget draws; render_sidebar() applies
+    # it again after the radio is read, which covers a change made this run.
+    inject_theme(st.session_state.get("theme_mode", "Light"))
     settings = render_sidebar()
 
     st.title("Credit Health & Restructuring Watch Agent")
