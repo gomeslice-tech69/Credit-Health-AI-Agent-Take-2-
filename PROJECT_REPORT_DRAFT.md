@@ -9,10 +9,8 @@ Live demo: _[paste your shared link here]_
 Code: _[paste your GitHub link here, or "submitted as attached archive"]_
 
 > **Status: rough draft.** The analytical engine, the web interface, the test
-> suite and the peer-comparison component are complete and working. Peer
-> comparison is currently available in the hosted version only; folding it into
-> the live Streamlit app is the main remaining task. Section 13 lists what I
-> plan to finish next.
+> suite and the peer-comparison component are complete and working in both the
+> live app and the hosted version. Section 13 lists what I plan to extend next.
 
 ---
 
@@ -293,9 +291,26 @@ permit true industry-level grouping, and the SEC EDGAR `companyfacts` API —
 official, free, no key, standardised XBRL tags across all filers — is the right
 source for that scale.
 
-Peer comparison currently appears in the hosted version only. The live
-Streamlit app would need to fetch and cache the full peer set on demand, which
-is the main remaining engineering task.
+### How the live app serves this without re-fetching
+
+The live app screens any ticker on demand, so it cannot fetch the peer group
+per analysis: 36 network requests per lookup would make each analysis take
+about a minute and would get the app rate-limited by Yahoo within a few uses,
+especially from a shared cloud host.
+
+Instead `build_peer_cache.py` fetches the benchmark group once and reduces it
+to the few values a comparison needs — about 5 KB, committed to the repository.
+The app loads it once per server process and compares against it with no
+network access at all. A company that appears in the benchmark is removed from
+its own peer group.
+
+This means **any ticker can be screened and still receive a comparison**, not
+only the 36 in the benchmark. Nike is not in the benchmark, yet it is compared
+against the ten Consumer Cyclical companies that are.
+
+The trade-off is that the benchmark is a snapshot while the company analysed is
+live. Industry medians move slowly, so this is normal practice, and the
+interface displays the benchmark date.
 
 ## 10. Limitations
 
@@ -371,6 +386,8 @@ python3 -m unittest discover -s tests -v
 | `screener/report.py` | Plain-text report |
 | `screener/peers.py` | Median and percentile calculations (Section 9) |
 | `build_web.py` | Injects exported data into the hosted page template |
+| `build_peer_cache.py` | Builds the sector benchmark the live app uses |
+| `data/peer_cache.json` | The committed benchmark (36 companies, 7 sectors) |
 | `tests/test_metrics.py` | 52 unit tests |
 | `data/*.json` | Synthetic teaching companies |
 | `web/index.html` | Static hosted version |
@@ -380,14 +397,12 @@ Approximately 4,900 lines including comments and tests.
 
 ## 13. Next steps
 
-1. Fold peer comparison into the live Streamlit app, with on-disk caching so
-   the peer set is fetched once rather than per analysis.
-2. Migrate the data source from Yahoo Finance to SEC EDGAR `companyfacts`, and
-   widen the set to a few hundred companies so grouping can move from broad
+1. Migrate the data source from Yahoo Finance to SEC EDGAR `companyfacts`, and
+   widen the benchmark set to a few hundred companies so grouping can move from broad
    sector to narrow industry.
 3. Add debt maturity data if a free source can be identified, since this is the
    single largest analytical gap.
-4. Extend the stress test to allow a revenue decline as well as an EBITDA
+3. Extend the stress test to allow a revenue decline as well as an EBITDA
    decline.
 
 ---

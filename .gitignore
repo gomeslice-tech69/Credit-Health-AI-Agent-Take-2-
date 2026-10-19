@@ -26,3 +26,6 @@ report.txt
 # Secrets panel, never in a file that gets pushed.
 .env
 .streamlit/secrets.toml
+
+# Local editor/session config, not part of the project
+.claude/

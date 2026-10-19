@@ -55,6 +55,7 @@ will need. Nothing else here is built yet.
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence
+from typing import Optional as _Optional
 
 
 def median(values: Sequence[Optional[float]]) -> Optional[float]:
@@ -131,4 +132,125 @@ def compare_to_peers(company_value: Optional[float],
         result["sentence"] += (
             f" Note: {dropped} peer(s) were excluded because the metric could "
             "not be computed for them.")
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Runtime comparison against the cached sector benchmark
+# ---------------------------------------------------------------------------
+
+import json as _json
+import os as _os
+from typing import Any as _Any
+
+# Below this many peers a median is an anecdote, not a benchmark, and the
+# comparison is withheld rather than shown with false authority.
+MIN_PEERS = 4
+
+_CACHE_PATH = _os.path.join(
+    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+    "data", "peer_cache.json")
+
+
+class PeerCacheUnavailable(Exception):
+    """The benchmark file is missing or unreadable. The app continues without
+    a comparison rather than failing the whole analysis."""
+
+
+def load_peer_cache(path: _Optional[str] = None) -> Dict[str, _Any]:
+    """Read the sector benchmark written by build_peer_cache.py.
+
+    Raises PeerCacheUnavailable rather than returning an empty structure, so a
+    missing benchmark is reported to the reader instead of silently looking
+    like "no peers found".
+    """
+    path = path or _CACHE_PATH
+    if not _os.path.exists(path):
+        raise PeerCacheUnavailable(
+            "No peer benchmark file found. Run `python3 build_peer_cache.py` "
+            "to create one.")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = _json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise PeerCacheUnavailable(f"Could not read the peer benchmark: {exc}")
+
+    if "sectors" not in data or "metrics" not in data:
+        raise PeerCacheUnavailable("The peer benchmark file is malformed.")
+    return data
+
+
+def compare_to_sector(ticker: str,
+                      sector: _Optional[str],
+                      latest_metrics: _Any,
+                      cache: Dict[str, _Any]) -> Dict[str, _Any]:
+    """Compare one company's latest metrics against its sector benchmark.
+
+    `latest_metrics` is a YearMetrics. The company is removed from its own peer
+    group when it appears in the benchmark, because a company cannot be its own
+    comparison -- including it would pull the median toward the very value being
+    judged against it.
+
+    Returns a dict with `available` False and a stated `reason` whenever a
+    credible comparison cannot be made. Every refusal explains itself; none is
+    silent.
+    """
+    result: Dict[str, _Any] = {
+        "available": False,
+        "reason": "",
+        "sector": sector,
+        "generated": cache.get("generated"),
+        "peerCount": 0,
+        "peerTickers": [],
+        "metrics": [],
+    }
+
+    if not sector:
+        result["reason"] = ("No sector was reported for this company, so it "
+                            "cannot be matched to a peer group.")
+        return result
+
+    entry = cache["sectors"].get(sector)
+    if entry is None:
+        covered = ", ".join(sorted(cache["sectors"].keys()))
+        result["reason"] = (
+            f"The benchmark does not yet cover the {sector} sector. "
+            f"Sectors currently covered: {covered}.")
+        return result
+
+    # Drop the company from its own peer group.
+    tickers = list(entry["tickers"])
+    keep = [i for i, t in enumerate(tickers) if t != ticker.upper()]
+    peer_tickers = [tickers[i] for i in keep]
+
+    if len(peer_tickers) < MIN_PEERS:
+        result["peerCount"] = len(peer_tickers)
+        result["peerTickers"] = peer_tickers
+        result["reason"] = (
+            f"Only {len(peer_tickers)} other {sector} companies are in the "
+            f"benchmark. A median needs at least {MIN_PEERS} peers to mean "
+            "anything, so no comparison is shown.")
+        return result
+
+    rows = []
+    for spec in cache["metrics"]:
+        key = spec["key"]
+        peer_values = [entry["values"][key][i] for i in keep]
+        comparison = compare_to_peers(
+            getattr(latest_metrics, key, None), peer_values, spec["label"],
+            higher_is_worse=spec["higherIsWorse"])
+        rows.append({
+            "key": key,
+            "label": spec["label"],
+            "higherIsWorse": spec["higherIsWorse"],
+            "companyValue": comparison["company_value"],
+            "peerMedian": comparison["peer_median"],
+            "percentile": comparison["percentile"],
+            "peersUsed": comparison["peers_used"],
+            "peersDropped": comparison["peers_dropped"],
+            "sentence": comparison["sentence"],
+        })
+
+    result.update({"available": True, "peerCount": len(peer_tickers),
+                   "peerTickers": peer_tickers, "metrics": rows})
     return result

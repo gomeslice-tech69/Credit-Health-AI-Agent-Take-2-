@@ -33,6 +33,8 @@ from screener import ai
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import YearMetrics, compute_all_metrics
 from screener.models import FinancialHistory
+from screener.peers import (PeerCacheUnavailable, compare_to_sector,
+                            load_peer_cache)
 from screener.narrative import (build_narrative, restructuring_watch,
                                 scenario_explanation,
                                 structural_caveats)
@@ -237,14 +239,41 @@ def delta_x(latest: Optional[float], prior: Optional[float],
 # The analysis bundle
 # ---------------------------------------------------------------------------
 
-@st.cache_data(show_spinner=False, ttl=3600)
-def fetch_history(ticker: str, source: str, years: int) -> FinancialHistory:
-    """Stage 1, cached for an hour.
+@st.cache_resource(show_spinner=False)
+def peer_benchmark():
+    """Load the sector benchmark once per server process.
 
-    Caching matters for two reasons: a 10-K does not change, and Yahoo Finance
-    will rate-limit repeated requests. Moving the downside slider re-runs the
-    whole Streamlit script, so without this cache every slider nudge would
-    trigger a fresh network fetch.
+    cache_resource rather than cache_data: this is a single read-only object
+    shared by every visitor, not per-request data. On a shared cloud host that
+    means one disk read for the life of the process instead of one per user.
+
+    Returns (cache, error_message). A missing benchmark must not fail the whole
+    analysis -- the app simply shows no comparison and explains why.
+    """
+    try:
+        return load_peer_cache(), None
+    except PeerCacheUnavailable as exc:
+        return None, str(exc)
+
+
+@st.cache_data(show_spinner=False, ttl=86400, max_entries=200)
+def fetch_history(ticker: str, source: str, years: int) -> FinancialHistory:
+    """Stage 1, cached for a day.
+
+    Caching is not an optimisation here, it is what keeps the app working.
+    Three reasons:
+
+      * Annual financial statements do not change. Re-fetching the same
+        company an hour later returns identical numbers.
+      * Yahoo Finance rate-limits repeated requests, and does so far more
+        aggressively against shared cloud hosts than against a home
+        connection. An uncached app on Streamlit Cloud gets throttled quickly.
+      * Streamlit re-runs this entire script on every interaction. Without the
+        cache, every nudge of the downside slider would trigger a fresh
+        network call.
+
+    A 24-hour TTL suits annual data; `max_entries` bounds memory so a long
+    session of lookups cannot grow without limit.
     """
     return load_history(ticker, source=source, max_years=years)
 
@@ -322,7 +351,23 @@ def run_agent_workflow(ticker: str, source: str, years: int,
         st.write(f"Identified credit signals — {fired} of {len(signals)} "
                  f"triggered")
 
-        # --- Step 6: summary ----------------------------------------------
+        # --- Step 6: sector comparison ------------------------------------
+        cache, cache_error = peer_benchmark()
+        if cache is None:
+            peers = {"available": False, "reason": cache_error,
+                     "sector": history.sector, "metrics": [],
+                     "peerCount": 0, "peerTickers": [], "generated": None}
+            st.write("Skipped sector comparison — no benchmark available")
+        else:
+            peers = compare_to_sector(history.ticker, history.sector,
+                                      metrics[-1], cache)
+            if peers["available"]:
+                st.write(f"Compared against {peers['peerCount']} "
+                         f"{history.sector} peers")
+            else:
+                st.write("Skipped sector comparison — not enough peers")
+
+        # --- Step 7: summary ----------------------------------------------
         narrative = build_narrative(history, metrics, signals, scenario,
                                     rating)
         analysis: Dict[str, object] = {
@@ -331,6 +376,7 @@ def run_agent_workflow(ticker: str, source: str, years: int,
             "signals": signals,
             "rating": rating,
             "narrative": narrative,
+            "peers": peers,
         }
 
         if use_claude:
@@ -513,6 +559,88 @@ def section_metrics(analysis: Dict[str, object]) -> None:
                      "Free Cash Flow", "EBITDA Margin", "Revenue Growth"):
             st.markdown(f"**{term}** — {METRIC_HELP[term]}")
             st.write("")
+
+
+def section_peers(analysis: Dict[str, object]) -> None:
+    """Sector comparison: is this company's leverage normal for its industry?
+
+    This is the answer to the biggest weakness of the rating in Section 6 of
+    the report. Every threshold there is a general convention that cannot tell
+    a regulated utility from a cyclical manufacturer. A sector median can.
+    """
+    peers = analysis.get("peers") or {}
+    history = analysis["history"]
+
+    st.markdown("### Industry comparison")
+    st.caption(
+        "Every threshold in the rating is a general convention. The same "
+        "leverage means different things in different industries, so these "
+        "figures compare the company against the median of its sector.")
+
+    if not peers.get("available"):
+        st.info(peers.get("reason") or "No sector comparison is available.")
+        return
+
+    rows = peers["metrics"]
+    cols = st.columns(len(rows))
+    for col, m in zip(cols, rows):
+        with col:
+            if m["companyValue"] is None or m["peerMedian"] is None:
+                st.metric(m["label"], "n/a")
+                st.caption(m["sentence"])
+                continue
+
+            is_pct = m["key"] == "ebitda_margin"
+            fmt = (lambda v: f"{v:.1%}") if is_pct else (lambda v: f"{v:.2f}x")
+            gap = m["companyValue"] - m["peerMedian"]
+            worse = gap > 0 if m["higherIsWorse"] else gap < 0
+
+            st.metric(
+                m["label"], fmt(m["companyValue"]),
+                delta=f"{'+' if gap > 0 else ''}{fmt(gap).lstrip('+')} vs median",
+                # Streamlit colours a positive delta green by default. For
+                # leverage, being above the median is bad news, so the colour
+                # is inverted to match the finance rather than the arithmetic.
+                delta_color="inverse" if m["higherIsWorse"] else "normal",
+                help=f"Sector median: {fmt(m['peerMedian'])}. "
+                     f"{'Higher' if m['higherIsWorse'] else 'Lower'} than the "
+                     "median is worse for this metric.")
+            st.caption(
+                f"{'Worse' if worse else 'Better'} than the median · "
+                f"{m['percentile']:.0f}th percentile of {m['peersUsed']} peers"
+                + (f" · {m['peersDropped']} excluded (not computable)"
+                   if m["peersDropped"] else ""))
+
+    st.caption(
+        f"Compared against {peers['peerCount']} {peers['sector']} companies: "
+        f"{', '.join(peers['peerTickers'])}.")
+
+    with st.expander("How this comparison is built, and what it cannot do"):
+        st.markdown(
+            "**Medians, not averages.** Credit ratios carry severe outliers — "
+            "one company with near-zero EBITDA produces a reading in the "
+            "hundreds, which would destroy an average. Ford sits at roughly "
+            "39x for exactly that reason, and a median absorbs it without "
+            "distortion.\n\n"
+            "**A company is never its own peer.** Including it would pull the "
+            "median toward the very value being judged against it.\n\n"
+            "**Uncomputable values are dropped, not zeroed.** A peer whose "
+            "leverage is unavailable because EBITDA is negative is excluded "
+            "from the median rather than counted as zero, and the number "
+            "excluded is shown above.\n\n"
+            "**A minimum of four peers is required.** Below that the "
+            "comparison is withheld, because a median built from two "
+            "companies is an anecdote rather than a benchmark.")
+        st.markdown(
+            "**Two limits.** The benchmark groups by *broad sector* rather "
+            "than narrow industry, because narrow industry groups in a set "
+            "this size are too small to clear the four-peer minimum — so an "
+            "airline is compared against other industrials, including Boeing "
+            "and Caterpillar. And the benchmark is a snapshot taken when it "
+            "was last rebuilt, while the company being analysed is live.")
+        if peers.get("generated"):
+            st.caption(f"Benchmark last rebuilt: {peers['generated']} "
+                       "(`python3 build_peer_cache.py` to refresh).")
 
 
 def section_explanation(analysis: Dict[str, object]) -> None:
@@ -989,6 +1117,8 @@ def main() -> None:
     section_rating(analysis)
     st.markdown("---")
     section_metrics(analysis)
+    st.markdown("---")
+    section_peers(analysis)
     st.markdown("---")
     section_explanation(analysis)
     st.markdown("---")

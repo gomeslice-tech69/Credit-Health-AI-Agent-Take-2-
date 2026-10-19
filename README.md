@@ -51,6 +51,18 @@ python3 main.py --ticker AAL --source yfinance --save report.txt
 python3 -m unittest discover -s tests -v
 ```
 
+### Refreshing the industry benchmark
+
+The app compares each company against its sector median, using a benchmark
+committed at `data/peer_cache.json`. To rebuild it from current data:
+
+```bash
+python3 build_peer_cache.py
+```
+
+That fetches ~36 companies once and writes about 5 KB. The app reads it with no
+network access, so any ticker can be screened and still get a comparison.
+
 ---
 
 ## Putting it online so your professor can open a URL

@@ -26,7 +26,9 @@ from screener import metrics as M                                   # noqa: E402
 from screener.models import FinancialHistory, FiscalYear            # noqa: E402
 from screener.narrative import (restructuring_watch,                # noqa: E402
                                 structural_caveats)
-from screener.peers import compare_to_peers, median                 # noqa: E402
+from screener.peers import (PeerCacheUnavailable,                   # noqa: E402
+                            compare_to_peers, compare_to_sector,
+                            load_peer_cache, median)
 from screener.rating import ELEVATED, LOW, rate_stress              # noqa: E402
 from screener.scenario import run_ebitda_downside                   # noqa: E402
 from screener.signals import evaluate_signals                       # noqa: E402
@@ -389,3 +391,89 @@ class TestRestructuringWatch(unittest.TestCase):
     def test_negative_fcf_adds_liquidity_question(self):
         areas = [a for a, _ in self._watch(DETERIORATING)[2]]
         self.assertIn("Liquidity and cash availability", areas)
+
+
+class TestSectorBenchmark(unittest.TestCase):
+    """The cached peer benchmark used by the live app."""
+
+    def _cache(self):
+        return {
+            "generated": "2026-10-18",
+            "metrics": [
+                {"key": "net_debt_to_ebitda", "label": "Net Debt / EBITDA",
+                 "higherIsWorse": True},
+                {"key": "interest_coverage", "label": "Interest Coverage",
+                 "higherIsWorse": False},
+            ],
+            "sectors": {
+                "Industrials": {
+                    "tickers": ["AAA", "BBB", "CCC", "DDD", "EEE"],
+                    "count": 5,
+                    "values": {
+                        "net_debt_to_ebitda": [1.0, 2.0, 3.0, 4.0, 5.0],
+                        "interest_coverage": [10.0, 9.0, 8.0, 7.0, 6.0],
+                    },
+                },
+                "Energy": {
+                    "tickers": ["XOM"], "count": 1,
+                    "values": {"net_debt_to_ebitda": [1.0],
+                               "interest_coverage": [9.0]},
+                },
+            },
+        }
+
+    def _metrics(self, leverage, coverage):
+        m = M.YearMetrics(year=2025)
+        m.net_debt_to_ebitda = leverage
+        m.interest_coverage = coverage
+        return m
+
+    def test_company_is_excluded_from_its_own_peer_group(self):
+        """AAA is in the benchmark, so its own 1.0 must not shape the median.
+        Median of the other four (2,3,4,5) is 3.5, not 3.0."""
+        r = compare_to_sector("AAA", "Industrials",
+                              self._metrics(1.0, 10.0), self._cache())
+        self.assertTrue(r["available"])
+        self.assertEqual(r["peerCount"], 4)
+        self.assertNotIn("AAA", r["peerTickers"])
+        lev = next(m for m in r["metrics"] if m["key"] == "net_debt_to_ebitda")
+        self.assertAlmostEqual(lev["peerMedian"], 3.5)
+
+    def test_company_outside_the_benchmark_is_still_compared(self):
+        """The whole point: any ticker works, not only the cached ones."""
+        r = compare_to_sector("NKE", "Industrials",
+                              self._metrics(6.0, 2.0), self._cache())
+        self.assertTrue(r["available"])
+        self.assertEqual(r["peerCount"], 5)
+        lev = next(m for m in r["metrics"] if m["key"] == "net_debt_to_ebitda")
+        self.assertAlmostEqual(lev["peerMedian"], 3.0)
+        self.assertAlmostEqual(lev["percentile"], 100.0)
+
+    def test_too_few_peers_refuses_with_a_reason(self):
+        r = compare_to_sector("XOM", "Energy",
+                              self._metrics(1.0, 9.0), self._cache())
+        self.assertFalse(r["available"])
+        self.assertIn("at least", r["reason"])
+
+    def test_unknown_sector_refuses_and_lists_what_is_covered(self):
+        r = compare_to_sector("ZZZ", "Utilities",
+                              self._metrics(3.0, 5.0), self._cache())
+        self.assertFalse(r["available"])
+        self.assertIn("Industrials", r["reason"])
+
+    def test_missing_sector_refuses(self):
+        r = compare_to_sector("ZZZ", None,
+                              self._metrics(3.0, 5.0), self._cache())
+        self.assertFalse(r["available"])
+        self.assertIn("No sector", r["reason"])
+
+    def test_missing_cache_raises_rather_than_looking_empty(self):
+        with self.assertRaises(PeerCacheUnavailable):
+            load_peer_cache("/nonexistent/peer_cache.json")
+
+    def test_shipped_cache_loads_and_covers_sectors(self):
+        """The committed benchmark must actually be usable."""
+        cache = load_peer_cache()
+        self.assertIn("sectors", cache)
+        usable = [s for s, d in cache["sectors"].items() if d["count"] >= 4]
+        self.assertTrue(usable, "no sector has enough peers to be usable")
