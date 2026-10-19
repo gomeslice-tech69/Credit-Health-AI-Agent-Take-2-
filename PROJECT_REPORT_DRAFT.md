@@ -2,11 +2,11 @@
 
 **Big Data Project — Rough Draft**
 
-Author: _[your name]_
-Course / Section: _[fill in]_
-Date: 15 October 2026
-Live demo: _[paste your shared link here]_
-Code: _[paste your GitHub link here, or "submitted as attached archive"]_
+Author: **_[YOUR NAME — fill this in]_**
+Course / Section: **_[FILL THIS IN]_**
+Date: 19 October 2026
+Live demo: https://restructuring-watch.streamlit.app
+Code: https://github.com/gomeslice-tech69/Credit-Health-AI-Agent-Take-2-
 
 > **Status: rough draft.** The analytical engine, the web interface, the test
 > suite and the peer-comparison component are complete and working in both the
@@ -343,6 +343,17 @@ Knowing what the tool cannot do is most of understanding it.
    from reported figures, not an invention.
 
 ## 11. How to run it
+
+### Deployed
+
+The application is live and needs no installation:
+
+**https://restructuring-watch.streamlit.app**
+
+It runs the same Python engine against Yahoo Finance on demand, so any public
+ticker can be screened. A light/dark toggle sits at the top of the sidebar.
+
+### Locally
 
 ```bash
 pip install -r requirements.txt

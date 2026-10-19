@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Financial Distress Screening Agent -- command line entry point.
+Credit Health & Restructuring Watch Agent -- command line entry point.
 
 Usage:
     python3 main.py --ticker EXMPL

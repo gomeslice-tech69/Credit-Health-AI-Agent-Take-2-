@@ -1,8 +1,12 @@
-# Financial Distress Screening Agent
+# Credit Health & Restructuring Watch Agent
 
 A first-pass screening tool that answers one question about a public company:
 
-> **Is this company showing signs of financial stress, and why?**
+> **Is this company's credit profile improving or deteriorating, and are there
+> warning signs that could eventually require restructuring analysis?**
+
+**Live app: https://restructuring-watch.streamlit.app** — no installation, any
+public ticker.
 
 It is deliberately **not** a bankruptcy predictor and **not** a restructuring
 adviser. It flags warning signs for a human analyst to investigate, the way a
@@ -178,29 +182,39 @@ UI.
 ### File structure
 
 ```
-distress_screener/
-├── README.md               this file
-├── requirements.txt        streamlit + yfinance (anthropic optional)
-├── app.py                  THE WEB DASHBOARD — streamlit run app.py
-├── main.py                 the command-line version
+credit-health-agent/
+├── README.md                 this file
+├── PROJECT_REPORT_DRAFT.md   the written project report
+├── requirements.txt          streamlit + yfinance (anthropic optional)
+│
+├── app.py                    THE WEB DASHBOARD — streamlit run app.py
+├── main.py                   the command-line version
 │
 ├── screener/
-│   ├── models.py           FiscalYear, FinancialHistory — the shared shapes
-│   ├── data_loader.py      Stage 1: local JSON + yfinance
-│   ├── metrics.py          the six formulas, one function each
-│   ├── signals.py          the seven warning signs
-│   ├── scenario.py         the EBITDA −20% downside case
-│   ├── rating.py           the transparent five-factor score
-│   ├── narrative.py        Stage 3: prose built from the computed facts
-│   ├── ai.py               Stage 3 (optional): the Claude rewording layer
-│   ├── report.py           Stage 4: the plain-text report
-│   └── peers.py            STUB for the Big Data phase
+│   ├── models.py             FiscalYear, FinancialHistory — shared shapes
+│   ├── data_loader.py        Stage 1: yfinance + local JSON
+│   ├── metrics.py            the six formulas, one function each
+│   ├── signals.py            the seven credit signals
+│   ├── scenario.py           the EBITDA downside stress test
+│   ├── rating.py             the transparent five-factor score
+│   ├── peers.py              sector medians and percentiles
+│   ├── narrative.py          Stage 3: prose built from computed facts
+│   ├── ai.py                 Stage 3 (optional): Claude rewording layer
+│   └── report.py             Stage 4: the plain-text report
 │
 ├── data/
-│   ├── EXMPL.json          synthetic deteriorating company
-│   └── HEALTHY.json        synthetic sound company
-└── tests/
-    └── test_metrics.py     43 tests, mostly about missing and weird data
+│   ├── EXMPL.json            synthetic deteriorating company
+│   ├── HEALTHY.json          synthetic sound company
+│   └── peer_cache.json       the sector benchmark (36 companies, 7 sectors)
+│
+├── tests/test_metrics.py     59 unit tests
+│
+├── build_peer_cache.py       rebuilds the sector benchmark
+├── export_web.py             runs the engine over the hosted company set
+├── build_web.py              injects that data into the hosted page
+├── make_favicon.py           regenerates the browser-tab icon
+├── assets/favicon.png        the icon itself
+└── web/template.html         the hosted page (data injected at build time)
 ```
 
 ---

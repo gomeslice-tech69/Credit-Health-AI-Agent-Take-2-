@@ -1,4 +1,4 @@
-"""Financial Distress Screening Agent -- a first-pass credit screening tool.
+"""Credit Health & Restructuring Watch Agent -- a first-pass credit screener.
 
 Pipeline:  data_loader -> metrics -> signals/scenario/rating -> report
 """
