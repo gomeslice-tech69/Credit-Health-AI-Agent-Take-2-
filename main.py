@@ -5,6 +5,7 @@ Credit Health & Restructuring Watch Agent -- command line entry point.
 Usage:
     python3 main.py --ticker EXMPL
     python3 main.py --ticker AAPL --source yfinance
+    python3 main.py --ticker AAPL --source edgar
     python3 main.py --ticker EXMPL --scenario 0.30
     python3 main.py --ticker EXMPL --save report.txt
 
@@ -34,8 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ticker", "-t", required=True,
                         help="Company ticker, e.g. EXMPL or AAPL")
     parser.add_argument("--source", "-s", default="local",
-                        choices=["local", "yfinance"],
-                        help="Where to get the data (default: local)")
+                        choices=["local", "yfinance", "edgar"],
+                        help="Where to get the data (default: local). "
+                             "'yfinance' fetches any public ticker; 'edgar' "
+                             "reads the company's own SEC filings and needs "
+                             "SEC_USER_AGENT set to a contact email.")
     parser.add_argument("--scenario", type=float, default=0.20,
                         help="EBITDA decline for the downside case, as a "
                              "decimal (default: 0.20 = a 20%% fall)")

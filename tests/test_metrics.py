@@ -21,6 +21,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ.setdefault("SEC_USER_AGENT", "test-suite test@example.com")
 
 from screener import edgar                                         # noqa: E402
 from screener import metrics as M                                   # noqa: E402
@@ -587,3 +588,33 @@ class TestEdgarExtraction(unittest.TestCase):
             os.environ.pop("SEC_USER_AGENT", None)
             if saved is not None:
                 os.environ["SEC_USER_AGENT"] = saved
+
+
+class TestSourcesAreReachableEverywhere(unittest.TestCase):
+    """Every data source the loader supports must also be reachable from the
+    command line. These drifted apart once: EDGAR was wired into the loader
+    and the web app, but main.py still rejected it as an invalid choice."""
+
+    def _cli_choices(self):
+        import main
+        for action in main.build_parser()._actions:
+            if "--source" in getattr(action, "option_strings", []):
+                return set(action.choices or [])
+        self.fail("main.py has no --source argument")
+
+    def test_cli_accepts_every_supported_source(self):
+        self.assertEqual(self._cli_choices(), {"local", "yfinance", "edgar"})
+
+    def test_loader_accepts_every_cli_choice(self):
+        """A choice the CLI offers must not be rejected by the loader. Each is
+        called with a ticker that cannot resolve, so a DataLoadError is the
+        expected outcome -- what must NOT appear is 'Unknown source'."""
+        from screener.data_loader import DataLoadError, load_history
+        for source in self._cli_choices():
+            with self.subTest(source=source):
+                try:
+                    load_history("ZZZZNOTAREALTICKER", source=source)
+                except DataLoadError as exc:
+                    self.assertNotIn("Unknown source", str(exc))
+                except Exception:
+                    pass  # network or missing package: not what this tests
