@@ -22,6 +22,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from screener import edgar                                         # noqa: E402
 from screener import metrics as M                                   # noqa: E402
 from screener.models import FinancialHistory, FiscalYear            # noqa: E402
 from screener.narrative import (restructuring_watch,                # noqa: E402
@@ -477,3 +478,112 @@ class TestSectorBenchmark(unittest.TestCase):
         self.assertIn("sectors", cache)
         usable = [s for s, d in cache["sectors"].items() if d["count"] >= 4]
         self.assertTrue(usable, "no sector has enough peers to be usable")
+
+
+class TestEdgarExtraction(unittest.TestCase):
+    """The XBRL parsing, tested against synthetic fact data so these run
+    offline and deterministically. Each test covers one way real filings
+    break a naive parser."""
+
+    def _fact(self, end, val, filed, start=None, form="10-K"):
+        f = {"end": end, "val": val, "filed": filed, "form": form}
+        if start:
+            f["start"] = start
+        return f
+
+    def test_stale_tags_fall_through_to_the_current_one(self):
+        """A company that switched tags must not return a series ending the
+        year it switched. American Airlines last used LongTermDebtNoncurrent
+        in 2012 and LongTermDebt since."""
+        gaap = {
+            "LongTermDebtNoncurrent": {"units": {"USD": [
+                self._fact("2012-12-31", 100, "2013-02-01")]}},
+            "LongTermDebt": {"units": {"USD": [
+                self._fact("2024-12-31", 500, "2025-02-01"),
+                self._fact("2025-12-31", 600, "2026-02-01")]}},
+        }
+        series, tags = edgar._annual_series(
+            gaap, ["LongTermDebtNoncurrent", "LongTermDebt"], instant=True)
+        self.assertEqual(series["2012-12-31"], 100)
+        self.assertEqual(series["2025-12-31"], 600)
+        self.assertEqual(len(tags), 2, "both tags should contribute")
+
+    def test_higher_preference_tag_wins_a_contested_period(self):
+        gaap = {
+            "A": {"units": {"USD": [self._fact("2025-12-31", 111, "2026-02-01")]}},
+            "B": {"units": {"USD": [self._fact("2025-12-31", 999, "2026-02-01")]}},
+        }
+        series, _ = edgar._annual_series(gaap, ["A", "B"], instant=True)
+        self.assertEqual(series["2025-12-31"], 111)
+
+    def test_quarterly_facts_are_excluded_from_annual_series(self):
+        """Quarters and years share a tag. Counting a quarter as a year would
+        understate revenue roughly fourfold."""
+        gaap = {"Revenues": {"units": {"USD": [
+            self._fact("2025-03-31", 25, "2025-05-01", start="2025-01-01"),
+            self._fact("2025-12-31", 100, "2026-02-01", start="2025-01-01"),
+        ]}}}
+        series, _ = edgar._annual_series(gaap, ["Revenues"], instant=False)
+        self.assertEqual(series, {"2025-12-31": 100.0})
+
+    def test_restated_period_uses_the_most_recent_filing(self):
+        """Every 10-K restates the prior year. The later filing is the
+        company's latest word on that period."""
+        gaap = {"Revenues": {"units": {"USD": [
+            self._fact("2024-12-31", 900, "2025-02-01", start="2024-01-01"),
+            self._fact("2024-12-31", 950, "2026-02-01", start="2024-01-01"),
+        ]}}}
+        series, _ = edgar._annual_series(gaap, ["Revenues"], instant=False)
+        self.assertEqual(series["2024-12-31"], 950.0)
+
+    def test_instant_facts_reject_durations_and_vice_versa(self):
+        gaap = {"Cash": {"units": {"USD": [
+            self._fact("2025-12-31", 50, "2026-02-01"),
+            self._fact("2025-12-31", 77, "2026-02-01", start="2025-01-01"),
+        ]}}}
+        instant, _ = edgar._annual_series(gaap, ["Cash"], instant=True)
+        self.assertEqual(instant, {"2025-12-31": 50.0})
+
+    def test_non_annual_forms_are_ignored(self):
+        gaap = {"Cash": {"units": {"USD": [
+            self._fact("2025-09-30", 10, "2025-11-01", form="10-Q"),
+            self._fact("2025-12-31", 20, "2026-02-01"),
+        ]}}}
+        series, _ = edgar._annual_series(gaap, ["Cash"], instant=True)
+        self.assertEqual(series, {"2025-12-31": 20.0})
+
+    def test_missing_tag_yields_empty_rather_than_raising(self):
+        series, tags = edgar._annual_series({}, ["Nope"], instant=True)
+        self.assertEqual(series, {})
+        self.assertEqual(tags, [])
+
+    def test_debt_parts_sum_across_periods(self):
+        a = {"2025-12-31": 100.0, "2024-12-31": 90.0}
+        b = {"2025-12-31": 10.0}
+        self.assertEqual(edgar._sum_series(a, b),
+                         {"2025-12-31": 110.0, "2024-12-31": 90.0})
+
+    def test_fiscal_years_of_52_or_53_weeks_count_as_full(self):
+        """Retailers' fiscal years are not 365 days. Rejecting them would
+        blank the entire sector."""
+        self.assertTrue(edgar._is_full_year(
+            {"start": "2025-02-02", "end": "2026-01-31"}))
+        self.assertFalse(edgar._is_full_year(
+            {"start": "2025-01-01", "end": "2025-03-31"}))
+
+    def test_user_agent_requires_a_contact_email(self):
+        """The SEC refuses anonymous requests, so this must fail loudly rather
+        than send an invented address."""
+        saved = os.environ.pop("SEC_USER_AGENT", None)
+        try:
+            with self.assertRaises(edgar.EdgarError):
+                edgar.user_agent()
+            os.environ["SEC_USER_AGENT"] = "No Email Here"
+            with self.assertRaises(edgar.EdgarError):
+                edgar.user_agent()
+            os.environ["SEC_USER_AGENT"] = "A Person a@example.com"
+            self.assertIn("@", edgar.user_agent())
+        finally:
+            os.environ.pop("SEC_USER_AGENT", None)
+            if saved is not None:
+                os.environ["SEC_USER_AGENT"] = saved

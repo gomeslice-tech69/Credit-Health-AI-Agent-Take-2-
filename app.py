@@ -1195,12 +1195,30 @@ def render_sidebar() -> Dict[str, object]:
 
     source_label = st.sidebar.radio(
         "Data source",
-        ["Yahoo Finance (live)", "Local file (offline)"],
-        help="Yahoo Finance fetches any public ticker but is an unofficial "
-             "source that occasionally omits line items. Local files are JSON "
-             "you type from a 10-K; they work offline and are reliable for a "
-             "demo.")
-    source = "yfinance" if source_label.startswith("Yahoo") else "local"
+        ["Yahoo Finance (live)", "SEC EDGAR (official)", "Local file (offline)"],
+        help="Yahoo fetches any public ticker but is an unofficial scraper. "
+             "SEC EDGAR is the actual regulatory filing — authoritative, but "
+             "it needs a contact email and covers only SEC filers. Local "
+             "files are synthetic teaching data that work with no internet.")
+    source = {"Yahoo": "yfinance", "SEC E": "edgar"}.get(
+        source_label[:5], "local")
+
+    if source == "edgar":
+        from screener.edgar import EdgarError, user_agent
+        try:
+            user_agent()
+        except EdgarError as exc:
+            st.sidebar.error(str(exc).split("\n")[0])
+            st.sidebar.caption(
+                "Set `SEC_USER_AGENT` to a contact string like "
+                "`Your Name you@example.com`. Locally that is an environment "
+                "variable; on Streamlit Community Cloud it goes in the app's "
+                "Secrets panel.")
+        else:
+            st.sidebar.caption(
+                "Figures come from the company's own 10-K filings. Totals may "
+                "differ from Yahoo's — notably total debt, where the two draw "
+                "the boundary differently on leases.")
 
     years = st.sidebar.slider(
         "Years of history", min_value=2, max_value=5, value=5,
@@ -1237,7 +1255,27 @@ def render_sidebar() -> Dict[str, object]:
 # Main
 # ---------------------------------------------------------------------------
 
+def _load_secrets_into_env() -> None:
+    """Copy Streamlit secrets into the environment.
+
+    Streamlit Community Cloud provides secrets through st.secrets, while the
+    EDGAR and Claude layers read os.environ so they also work from the command
+    line. This bridges the two, and stays silent when no secrets file exists,
+    which is the normal case locally.
+    """
+    for key in ("SEC_USER_AGENT", "ANTHROPIC_API_KEY"):
+        if os.environ.get(key):
+            continue
+        try:
+            value = st.secrets[key]
+        except Exception:
+            continue
+        if value:
+            os.environ[key] = str(value)
+
+
 def main() -> None:
+    _load_secrets_into_env()
     # Paint the stored theme before any widget draws; render_sidebar() applies
     # it again after the radio is read, which covers a change made this run.
     inject_theme(st.session_state.get("theme_mode", "Light"))

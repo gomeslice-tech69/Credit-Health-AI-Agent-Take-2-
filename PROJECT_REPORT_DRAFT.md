@@ -312,6 +312,70 @@ The trade-off is that the benchmark is a snapshot while the company analysed is
 live. Industry medians move slowly, so this is normal practice, and the
 interface displays the benchmark date.
 
+## 9b. SEC EDGAR as a second data source
+
+**Implemented.** The system can now read directly from the SEC's XBRL
+`companyfacts` API — the actual regulatory filings — as an alternative to
+Yahoo Finance.
+
+| | Yahoo Finance | SEC EDGAR |
+|---|---|---|
+| Nature | unofficial scraper | the filing itself |
+| Tags | labels drift between versions | standardised XBRL across all filers |
+| Key required | no | no (but a contact email is) |
+| Coverage | global, including funds | US SEC filers only |
+
+### Three problems raw filings present, and how each is handled
+
+**Tags go stale.** Companies change which XBRL tag they use as standards
+evolve. American Airlines last reported `LongTermDebtNoncurrent` in 2012 and
+has used `LongTermDebt` since. Taking the first tag with any data returns a
+series ending in 2012 and leaves every recent year blank — which is exactly
+what the first implementation did. Candidate tags are therefore *merged by
+period*: each year takes its value from the highest-preference tag that
+actually covers that year.
+
+**Every filing restates the prior year.** The same fiscal year appears in
+several 10-Ks, so the most recently *filed* value is kept, which reflects any
+restatement.
+
+**Quarters and years share a tag.** Income-statement facts carry both,
+distinguished only by period length. Counting a quarter as a year would
+understate revenue roughly fourfold. Periods of 330–400 days count as annual,
+a range wide enough for the 52- and 53-week fiscal years retailers use.
+
+### A finding: the two sources disagree about total debt
+
+For American Airlines' 2025 fiscal year:
+
+| Source | Total debt |
+|---|---|
+| Yahoo Finance | 36,884m |
+| SEC EDGAR | 29,007m |
+
+Neither is wrong. The ~7,900m gap is **operating lease liabilities**, which
+Yahoo includes in total debt and this EDGAR implementation does not. Finance
+leases are included in both, because they are fixed contractual obligations
+indistinguishable from borrowing.
+
+This matters because it changes the output: American Airlines screens
+**Elevated** on Yahoo data and **Moderate** on EDGAR data. The arithmetic is
+identical; the input definition differs.
+
+The wider lesson is that "total debt" is a choice rather than a fact, and a
+credit screen is only as consistent as its definition. A real analyst states
+which definition they are using. The application names its source on every
+report for this reason.
+
+### A second finding: captive finance arms resist standard tags
+
+Ford returns no leverage figure at all from EDGAR. Its debt sits in
+company-specific extension tags that split automotive from Ford Credit
+borrowing, rather than in the standard `us-gaap` ones. The tool correctly
+reports this as unavailable instead of guessing — and it is the same company
+that produces the misleading 39x reading discussed in Section 7. The two
+findings are the same underlying problem seen from different angles.
+
 ## 10. Limitations
 
 Knowing what the tool cannot do is most of understanding it.
@@ -336,7 +400,10 @@ Knowing what the tool cannot do is most of understanding it.
    year.
 8. **Captive finance arms distort leverage.** Mitigated by the warning
    described in Section 7, not solved.
-9. **Yahoo Finance is an unofficial source.** It is a scraper, occasionally
+9. **EDGAR covers only SEC filers**, and returns no sector classification, so
+   peer comparison is unavailable on that source. Foreign issuers reporting
+   under IFRS, funds and private companies are absent.
+10. **Yahoo Finance is an unofficial source.** It is a scraper, occasionally
    omits line items, and can change without notice. Where EBITDA is not
    reported, the loader reconstructs it as Operating Income + D&A and records a
    note that is displayed in the output. That is a disclosed reconstruction
@@ -387,7 +454,8 @@ python3 -m unittest discover -s tests -v
 | `app.py` | Streamlit web dashboard |
 | `main.py` | Command-line interface |
 | `screener/models.py` | Shared data structures |
-| `screener/data_loader.py` | Stage 1 — Yahoo Finance and local JSON |
+| `screener/data_loader.py` | Stage 1 — Yahoo Finance, SEC EDGAR and local JSON |
+| `screener/edgar.py` | The SEC XBRL client and tag extraction |
 | `screener/metrics.py` | The six credit formulas |
 | `screener/signals.py` | The seven warning signals |
 | `screener/scenario.py` | Downside stress test |
@@ -408,8 +476,7 @@ Approximately 4,900 lines including comments and tests.
 
 ## 13. Next steps
 
-1. Migrate the data source from Yahoo Finance to SEC EDGAR `companyfacts`, and
-   widen the benchmark set to a few hundred companies so grouping can move from broad
+1. Build the peer benchmark from EDGAR rather than Yahoo, and widen the set to a few hundred companies so grouping can move from broad
    sector to narrow industry.
 3. Add debt maturity data if a free source can be identified, since this is the
    single largest analytical gap.

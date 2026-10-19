@@ -55,6 +55,28 @@ python3 main.py --ticker AAL --source yfinance --save report.txt
 python3 -m unittest discover -s tests -v
 ```
 
+### Using SEC EDGAR instead of Yahoo
+
+EDGAR serves the actual regulatory filings rather than a scraped copy. It is
+free and needs no API key, but the SEC requires every automated request to
+identify its sender and refuses anonymous ones:
+
+```bash
+export SEC_USER_AGENT="Your Name your.email@example.com"
+```
+
+On Streamlit Community Cloud that goes in the app's **Secrets** panel instead.
+Use a real address you monitor — that is the condition of access.
+
+Then pick **SEC EDGAR (official)** in the sidebar, or from the command line:
+
+```bash
+python3 main.py --ticker AAL --source edgar
+```
+
+**Expect some figures to differ from Yahoo's.** This is not a bug in either
+source; see the note on total debt in the project report.
+
 ### Refreshing the industry benchmark
 
 The app compares each company against its sector median, using a benchmark

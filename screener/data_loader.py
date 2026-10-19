@@ -305,6 +305,28 @@ def _load_yfinance(ticker: str, max_years: int = 5) -> FinancialHistory:
 
 
 # ---------------------------------------------------------------------------
+# Source 3: SEC EDGAR
+# ---------------------------------------------------------------------------
+
+def _load_edgar(ticker: str, max_years: int = 5) -> FinancialHistory:
+    """Official SEC filings. See screener/edgar.py for the detail.
+
+    The import is deferred so that the rest of the project keeps working if
+    that module is ever absent, and EdgarError is converted to DataLoadError
+    so every caller still handles exactly one exception type.
+    """
+    try:
+        from .edgar import EdgarError, load_edgar_history
+    except ImportError as exc:
+        raise DataLoadError(f"The EDGAR source is unavailable: {exc}")
+
+    try:
+        return load_edgar_history(ticker, max_years=max_years)
+    except EdgarError as exc:
+        raise DataLoadError(str(exc))
+
+
+# ---------------------------------------------------------------------------
 # The single entry point
 # ---------------------------------------------------------------------------
 
@@ -324,6 +346,8 @@ def load_history(ticker: str,
         return _load_local(ticker, path=path)
     if source in ("yfinance", "yahoo"):
         return _load_yfinance(ticker, max_years=max_years)
+    if source in ("edgar", "sec"):
+        return _load_edgar(ticker, max_years=max_years)
     raise DataLoadError(
-        f"Unknown source '{source}'. Use 'local' or 'yfinance'."
+        f"Unknown source '{source}'. Use 'local', 'yfinance' or 'edgar'."
     )
