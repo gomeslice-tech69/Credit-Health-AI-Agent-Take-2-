@@ -105,6 +105,22 @@ def _load_local(ticker: str, path: Optional[str] = None) -> FinancialHistory:
                 operating_cash_flow=_coerce_number(
                     row.get("operating_cash_flow"), "operating_cash_flow", y),
                 capex=_coerce_number(row.get("capex"), "capex", y),
+                # Extended balance-sheet set: optional, used by the Altman
+                # Z''-score. A file without them simply has no Z-score.
+                total_assets=_coerce_number(
+                    row.get("total_assets"), "total_assets", y),
+                current_assets=_coerce_number(
+                    row.get("current_assets"), "current_assets", y),
+                current_liabilities=_coerce_number(
+                    row.get("current_liabilities"), "current_liabilities", y),
+                retained_earnings=_coerce_number(
+                    row.get("retained_earnings"), "retained_earnings", y),
+                total_liabilities=_coerce_number(
+                    row.get("total_liabilities"), "total_liabilities", y),
+                shareholders_equity=_coerce_number(
+                    row.get("shareholders_equity"), "shareholders_equity", y),
+                operating_income=_coerce_number(
+                    row.get("operating_income"), "operating_income", y),
             )
         )
 

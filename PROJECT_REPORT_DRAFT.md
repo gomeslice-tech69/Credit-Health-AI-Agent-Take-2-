@@ -420,6 +420,14 @@ deteriorating while the balance sheet remains well capitalised. A company in
 that position has time to fix the earnings problem, which is precisely what
 our debt-service view cannot see.
 
+### Availability
+
+The Z-score needs the full balance sheet, which both live sources supply. The
+two synthetic teaching companies were extended with internally consistent
+balance sheets so the score can be demonstrated with no internet connection:
+EXMPL walks from the grey zone (2.33) into distress (−0.58) across the five
+years, while HEALTHY stays safe throughout.
+
 ### Deliberate exclusions
 
 Banks and insurers are refused rather than scored. Altman's model was never

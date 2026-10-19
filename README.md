@@ -68,6 +68,10 @@ export SEC_USER_AGENT="Your Name your.email@example.com"
 On Streamlit Community Cloud that goes in the app's **Secrets** panel instead.
 Use a real address you monitor — that is the condition of access.
 
+**The EDGAR option only appears in the sidebar once this is set.** An
+interface that offers a choice which cannot work is worse than one that offers
+fewer choices, so the option is hidden rather than shown with an error.
+
 Then pick **SEC EDGAR (official)** in the sidebar, or from the command line:
 
 ```bash

@@ -7,7 +7,8 @@
   "units": "millions",
   "source_note": "SYNTHETIC DATA. These figures were invented by hand to demonstrate a gradually deteriorating credit profile. EXMPL is not a real company and these numbers do not describe any real business. Replace this file with figures typed from a real 10-K to analyse an actual company.",
   "notes": {
-    "purpose": "Built to illustrate the classic slow-deterioration pattern: revenue roughly flat then falling, margin compressing every year, free cash flow turning negative, and the resulting gap funded with new debt so that leverage climbs steadily without any single dramatic event."
+    "purpose": "Built to illustrate the classic slow-deterioration pattern: revenue roughly flat then falling, margin compressing every year, free cash flow turning negative, and the resulting gap funded with new debt so that leverage climbs steadily without any single dramatic event.",
+    "balance_sheet": "Balance-sheet figures were added so the Altman Z''-score can be demonstrated offline. They are invented like the rest of this file, but internally consistent: total liabilities equals total assets minus shareholders' equity in every year."
   },
   "fiscal_years": [
     {
@@ -18,7 +19,14 @@
       "total_debt": 1500,
       "interest_expense": 72,
       "operating_cash_flow": 400,
-      "capex": 230
+      "capex": 230,
+      "total_assets": 3400,
+      "current_assets": 1050,
+      "current_liabilities": 820,
+      "retained_earnings": 640,
+      "shareholders_equity": 1180,
+      "operating_income": 360,
+      "total_liabilities": 2220
     },
     {
       "year": 2022,
@@ -28,7 +36,14 @@
       "total_debt": 1550,
       "interest_expense": 76,
       "operating_cash_flow": 360,
-      "capex": 245
+      "capex": 245,
+      "total_assets": 3350,
+      "current_assets": 1010,
+      "current_liabilities": 880,
+      "retained_earnings": 560,
+      "shareholders_equity": 1090,
+      "operating_income": 335,
+      "total_liabilities": 2260
     },
     {
       "year": 2023,
@@ -38,7 +53,14 @@
       "total_debt": 1680,
       "interest_expense": 88,
       "operating_cash_flow": 290,
-      "capex": 250
+      "capex": 250,
+      "total_assets": 3240,
+      "current_assets": 940,
+      "current_liabilities": 980,
+      "retained_earnings": 390,
+      "shareholders_equity": 900,
+      "operating_income": 245,
+      "total_liabilities": 2340
     },
     {
       "year": 2024,
@@ -48,7 +70,14 @@
       "total_debt": 1800,
       "interest_expense": 110,
       "operating_cash_flow": 215,
-      "capex": 240
+      "capex": 240,
+      "total_assets": 3100,
+      "current_assets": 860,
+      "current_liabilities": 1080,
+      "retained_earnings": 180,
+      "shareholders_equity": 670,
+      "operating_income": 165,
+      "total_liabilities": 2430
     },
     {
       "year": 2025,
@@ -58,7 +87,14 @@
       "total_debt": 1950,
       "interest_expense": 135,
       "operating_cash_flow": 150,
-      "capex": 225
+      "capex": 225,
+      "total_assets": 2980,
+      "current_assets": 790,
+      "current_liabilities": 1190,
+      "retained_earnings": -70,
+      "shareholders_equity": 400,
+      "operating_income": 95,
+      "total_liabilities": 2580
     }
   ]
 }

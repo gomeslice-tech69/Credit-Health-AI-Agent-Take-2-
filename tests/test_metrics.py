@@ -706,3 +706,44 @@ class TestAltmanZScore(unittest.TestCase):
         from screener import rating as rating_module
         source = inspect.getsource(rating_module)
         self.assertNotIn("altman", source.lower())
+
+
+class TestOfflineDataSupportsEveryFeature(unittest.TestCase):
+    """The two synthetic companies are the demo fallback when there is no
+    internet, so every section of the app must work with them. The Z-score
+    silently did not, because those files carried only the core seven fields."""
+
+    def test_synthetic_companies_produce_a_z_score(self):
+        from screener.data_loader import load_history
+        for ticker in ("EXMPL", "HEALTHY"):
+            with self.subTest(ticker=ticker):
+                history = load_history(ticker, source="local")
+                z = compute_z_score(history.sorted_years()[-1])
+                self.assertTrue(z.available,
+                                f"{ticker} has no Z-score: {z.reason}")
+
+    def test_synthetic_balance_sheets_balance(self):
+        """Assets must equal liabilities plus equity, or the teaching data
+        teaches something false."""
+        from screener.data_loader import load_history
+        for ticker in ("EXMPL", "HEALTHY"):
+            for fy in load_history(ticker, source="local").years:
+                with self.subTest(ticker=ticker, year=fy.year):
+                    self.assertAlmostEqual(
+                        fy.total_assets,
+                        fy.total_liabilities + fy.shareholders_equity,
+                        places=4)
+
+    def test_the_deteriorating_company_ends_in_distress(self):
+        """EXMPL exists to show deterioration, so its Z-score must fall."""
+        from screener.data_loader import load_history
+        scores = [compute_z_score(fy).score
+                  for fy in load_history("EXMPL", source="local").sorted_years()]
+        self.assertGreater(scores[0], scores[-1])
+        self.assertEqual(altman.zone_for(scores[-1]), "Distress zone")
+
+    def test_the_sound_company_stays_safe(self):
+        from screener.data_loader import load_history
+        scores = [compute_z_score(fy).score
+                  for fy in load_history("HEALTHY", source="local").sorted_years()]
+        self.assertTrue(all(altman.zone_for(s) == "Safe zone" for s in scores))

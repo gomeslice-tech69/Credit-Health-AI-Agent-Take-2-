@@ -1278,32 +1278,37 @@ def render_sidebar() -> Dict[str, object]:
              "reads better on paper-white screens and in daylight.")
     inject_theme(theme)
 
+    # EDGAR is only offered when it can actually run. The SEC refuses
+    # anonymous requests, so without SEC_USER_AGENT the option could only ever
+    # produce an error -- and an interface that offers a choice which cannot
+    # work is worse than one that offers fewer choices.
+    from screener.edgar import EdgarError, user_agent
+    try:
+        user_agent()
+        edgar_ready = True
+    except EdgarError:
+        edgar_ready = False
+
+    options = ["Yahoo Finance (live)"]
+    if edgar_ready:
+        options.append("SEC EDGAR (official)")
+    options.append("Local file (offline)")
+
     source_label = st.sidebar.radio(
-        "Data source",
-        ["Yahoo Finance (live)", "SEC EDGAR (official)", "Local file (offline)"],
+        "Data source", options,
         help="Yahoo fetches any public ticker but is an unofficial scraper. "
-             "SEC EDGAR is the actual regulatory filing — authoritative, but "
-             "it needs a contact email and covers only SEC filers. Local "
-             "files are synthetic teaching data that work with no internet.")
+             + ("SEC EDGAR is the actual regulatory filing — authoritative, "
+                "though it covers only SEC filers. " if edgar_ready else "")
+             + "Local files are synthetic teaching data that work with no "
+               "internet.")
     source = {"Yahoo": "yfinance", "SEC E": "edgar"}.get(
         source_label[:5], "local")
 
     if source == "edgar":
-        from screener.edgar import EdgarError, user_agent
-        try:
-            user_agent()
-        except EdgarError as exc:
-            st.sidebar.error(str(exc).split("\n")[0])
-            st.sidebar.caption(
-                "Set `SEC_USER_AGENT` to a contact string like "
-                "`Your Name you@example.com`. Locally that is an environment "
-                "variable; on Streamlit Community Cloud it goes in the app's "
-                "Secrets panel.")
-        else:
-            st.sidebar.caption(
-                "Figures come from the company's own 10-K filings. Totals may "
-                "differ from Yahoo's — notably total debt, where the two draw "
-                "the boundary differently on leases.")
+        st.sidebar.caption(
+            "Figures come from the company's own 10-K filings. Totals may "
+            "differ from Yahoo's — notably total debt, where the two draw the "
+            "boundary differently on leases.")
 
     years = st.sidebar.slider(
         "Years of history", min_value=2, max_value=5, value=5,
