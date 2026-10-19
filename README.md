@@ -290,6 +290,11 @@ the whole thing "AI".
 | Does the maths | **No** | **No** |
 | Decides the rating | **No** | **No** |
 
+**The project runs in template mode.** Explanations are written by Python, so
+the wording is identical on every run — part of the reproducibility claim
+rather than a limitation of it. The Claude layer is optional, off, and the
+only part of the project that would cost anything.
+
 **In both modes Python does every calculation and decides the rating.** The
 language model, when enabled, receives only the already-computed figures and is
 instructed to introduce no numbers of its own. It changes the wording, never

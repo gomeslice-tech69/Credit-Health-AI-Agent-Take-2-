@@ -64,6 +64,18 @@ excellent news, unknown debt means no view can be formed. The code propagates
 reason. A tool that silently invents inputs produces confident nonsense, which
 is worse than producing nothing.
 
+### A note on the explanation layer
+
+The explanations are written by Python, not by a language model. An optional
+Claude layer exists in `screener/ai.py` and can reword the same computed
+figures, but it is not enabled, and the project is better for it: identical
+inputs produce identical wording on every run, which is part of the
+reproducibility claim above rather than a limitation of it.
+
+Claude never had access to the arithmetic in either configuration. It receives
+figures Python has already computed and is instructed to introduce none of its
+own. Leaving it off removes the question entirely.
+
 ## 4. Architecture
 
 Four stages, each in its own module, each independently testable. Two

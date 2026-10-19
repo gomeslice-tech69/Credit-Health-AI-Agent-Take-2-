@@ -1315,16 +1315,28 @@ def render_sidebar() -> Dict[str, object]:
         help="Trends need at least two years. Three to five is enough to see "
              "a direction of travel.")
 
+    # The Claude rewording layer is offered only when it can actually run --
+    # the same rule applied to the EDGAR source. A disabled control that can
+    # never be switched on is clutter, not a feature.
+    #
+    # Note what is NOT conditional: the explanations themselves. Those are
+    # written by narrative.py in every configuration, so the app always
+    # explains its findings. Claude would only reword them.
     st.sidebar.markdown("### Explanation")
     claude_ready = ai.is_configured()
-    use_claude = st.sidebar.toggle(
-        "Use Claude for explanations", value=claude_ready,
-        disabled=not claude_ready,
-        help="Off: explanations are assembled by Python from sentence "
-             "templates — deterministic and free. On: the computed figures are "
-             "sent to Claude, which rewords them. Either way Python does all "
-             "the arithmetic and decides the rating.")
-    st.sidebar.caption(ai.status_message())
+    if claude_ready:
+        use_claude = st.sidebar.toggle(
+            "Use Claude for explanations", value=True,
+            help="Off: prose assembled by Python from the computed figures — "
+                 "deterministic and free. On: those same figures are sent to "
+                 "Claude, which rewords them. Either way Python does every "
+                 "calculation and decides the rating.")
+    else:
+        use_claude = False
+        st.sidebar.caption(
+            "Explanations are written by Python from the computed figures, so "
+            "the wording is identical on every run. No language model is "
+            "involved.")
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### The pipeline")
@@ -1333,9 +1345,9 @@ def render_sidebar() -> Dict[str, object]:
         '→ Credit Metrics<br>→ Signal Detection<br>'
         '→ Stress Test<br>→ Summary</div>', unsafe_allow_html=True)
     st.sidebar.caption(
-        "Python does every calculation and decides the rating. The language "
-        "model, when enabled, only describes the result — so the numbers are "
-        "identical on every run.")
+        "Python does every calculation, decides the rating and writes the "
+        "explanation, so the output is identical on every run. An optional "
+        "Claude layer can reword the prose; it never touches a number.")
 
     return {"source": source, "years": years,
             "use_claude": use_claude, "theme": theme}
