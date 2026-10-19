@@ -1,0 +1,10 @@
+# Web dashboard. Needed for `streamlit run app.py`.
+streamlit>=1.40
+
+# Live financial data. Needed only for the Yahoo Finance source; the local
+# JSON source and the command-line tool work without it.
+yfinance>=0.2.40
+
+# OPTIONAL: the Claude explanation layer. Everything works without it -- the
+# app falls back to the built-in template writer and says so in the sidebar.
+# anthropic>=0.40

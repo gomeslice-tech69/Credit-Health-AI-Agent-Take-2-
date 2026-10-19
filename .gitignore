@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# Generated output — rebuild with:
+#   python3 export_web.py && python3 build_web.py
+# web_data.json is a 690 KB snapshot and web/index.html is 728 KB because the
+# data is embedded in it. Both are products of the source files, so they are
+# regenerated rather than tracked. web/template.html IS tracked: it is the
+# hand-written page that the build step fills in.
+web_data.json
+web/index.html
+
+# Saved reports
+report.txt
+*.pdf
+
+# Never commit secrets. The Claude explanation layer reads ANTHROPIC_API_KEY
+# from the environment; on Streamlit Community Cloud it goes in the app's
+# Secrets panel, never in a file that gets pushed.
+.env
+.streamlit/secrets.toml

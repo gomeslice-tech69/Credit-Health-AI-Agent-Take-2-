@@ -1,0 +1,7 @@
+# Streamlit configuration. Safe to delete -- these are cosmetic defaults only.
+[theme]
+base = "light"
+primaryColor = "#1f6feb"
+
+[browser]
+gatherUsageStats = false

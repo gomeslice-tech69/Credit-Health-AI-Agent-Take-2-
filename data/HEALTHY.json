@@ -1,0 +1,64 @@
+{
+  "ticker": "HEALTHY",
+  "company_name": "Steady Industries Inc (SYNTHETIC TEACHING DATA - NOT A REAL COMPANY)",
+  "sector": "Industrials",
+  "industry": "Industrial Machinery",
+  "currency": "USD",
+  "units": "millions",
+  "source_note": "SYNTHETIC DATA, invented by hand as a contrast case to EXMPL. Not a real company. Use this to check that the rating logic correctly returns Low Stress for a sound credit, rather than flagging everything it sees.",
+  "notes": {
+    "purpose": "A company with modest leverage, comfortable coverage, growing earnings and consistently positive free cash flow. Note it still carries debt and still has cash declining in one year -- a healthy company is not one with zero warning signs, it is one where the signs do not combine into a story."
+  },
+  "fiscal_years": [
+    {
+      "year": 2021,
+      "revenue": 2800,
+      "ebitda": 476,
+      "cash": 520,
+      "total_debt": 900,
+      "interest_expense": 38,
+      "operating_cash_flow": 390,
+      "capex": 150
+    },
+    {
+      "year": 2022,
+      "revenue": 2980,
+      "ebitda": 521,
+      "cash": 610,
+      "total_debt": 880,
+      "interest_expense": 36,
+      "operating_cash_flow": 430,
+      "capex": 165
+    },
+    {
+      "year": 2023,
+      "revenue": 3150,
+      "ebitda": 567,
+      "cash": 580,
+      "total_debt": 850,
+      "interest_expense": 35,
+      "operating_cash_flow": 470,
+      "capex": 180
+    },
+    {
+      "year": 2024,
+      "revenue": 3340,
+      "ebitda": 618,
+      "cash": 700,
+      "total_debt": 820,
+      "interest_expense": 33,
+      "operating_cash_flow": 510,
+      "capex": 190
+    },
+    {
+      "year": 2025,
+      "revenue": 3520,
+      "ebitda": 668,
+      "cash": 795,
+      "total_debt": 800,
+      "interest_expense": 32,
+      "operating_cash_flow": 555,
+      "capex": 200
+    }
+  ]
+}

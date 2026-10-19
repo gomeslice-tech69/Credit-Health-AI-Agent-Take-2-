@@ -1,0 +1,64 @@
+{
+  "ticker": "EXMPL",
+  "company_name": "Example Retail Co (SYNTHETIC TEACHING DATA - NOT A REAL COMPANY)",
+  "sector": "Consumer Discretionary",
+  "industry": "Specialty Retail",
+  "currency": "USD",
+  "units": "millions",
+  "source_note": "SYNTHETIC DATA. These figures were invented by hand to demonstrate a gradually deteriorating credit profile. EXMPL is not a real company and these numbers do not describe any real business. Replace this file with figures typed from a real 10-K to analyse an actual company.",
+  "notes": {
+    "purpose": "Built to illustrate the classic slow-deterioration pattern: revenue roughly flat then falling, margin compressing every year, free cash flow turning negative, and the resulting gap funded with new debt so that leverage climbs steadily without any single dramatic event."
+  },
+  "fiscal_years": [
+    {
+      "year": 2021,
+      "revenue": 4200,
+      "ebitda": 525,
+      "cash": 410,
+      "total_debt": 1500,
+      "interest_expense": 72,
+      "operating_cash_flow": 400,
+      "capex": 230
+    },
+    {
+      "year": 2022,
+      "revenue": 4350,
+      "ebitda": 510,
+      "cash": 360,
+      "total_debt": 1550,
+      "interest_expense": 76,
+      "operating_cash_flow": 360,
+      "capex": 245
+    },
+    {
+      "year": 2023,
+      "revenue": 4180,
+      "ebitda": 430,
+      "cash": 300,
+      "total_debt": 1680,
+      "interest_expense": 88,
+      "operating_cash_flow": 290,
+      "capex": 250
+    },
+    {
+      "year": 2024,
+      "revenue": 3990,
+      "ebitda": 360,
+      "cash": 240,
+      "total_debt": 1800,
+      "interest_expense": 110,
+      "operating_cash_flow": 215,
+      "capex": 240
+    },
+    {
+      "year": 2025,
+      "revenue": 3850,
+      "ebitda": 300,
+      "cash": 185,
+      "total_debt": 1950,
+      "interest_expense": 135,
+      "operating_cash_flow": 150,
+      "capex": 225
+    }
+  ]
+}

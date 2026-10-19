@@ -1,0 +1,1189 @@
+<title>Credit Health &amp; Restructuring Watch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap">
+
+<style>
+/* Layout: a credit memo — fixed masthead, company rail, then stacked
+   analytical sections in the order an analyst reads them. */
+:root {
+  /* Neutrals carry a slight blue bias toward the steel accent. */
+  --paper: #f7f8fa;
+  --surface: #ffffff;
+  --surface-sunk: #eef1f5;
+  --ink: #16202e;
+  --ink-soft: #4a5a6e;
+  --ink-faint: #76859a;
+  --rule: #d9dfe8;
+  --rule-strong: #b9c3d1;
+  --steel: #2a5d8f;
+  --steel-soft: #e3edf7;
+
+  /* Semantic bands. Separate from the accent, as severity must never be
+     confused with branding. */
+  --low: #15713f;
+  --low-bg: #e4f3ea;
+  --moderate: #9a6209;
+  --moderate-bg: #fcf0dc;
+  --elevated: #a62a22;
+  --elevated-bg: #fbe7e5;
+
+  --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-figure: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --maxw: 1080px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e141c;
+    --surface: #161e29;
+    --surface-sunk: #1d2733;
+    --ink: #e8edf4;
+    --ink-soft: #a8b5c6;
+    --ink-faint: #7c8a9c;
+    --rule: #2a3644;
+    --rule-strong: #3d4c5e;
+    --steel: #74aae0;
+    --steel-soft: #1b2a3a;
+    --low: #5fcc8d;
+    --low-bg: #12301f;
+    --moderate: #e4ab44;
+    --moderate-bg: #32250d;
+    --elevated: #ff8b80;
+    --elevated-bg: #361513;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e141c;
+  --surface: #161e29;
+  --surface-sunk: #1d2733;
+  --ink: #e8edf4;
+  --ink-soft: #a8b5c6;
+  --ink-faint: #7c8a9c;
+  --rule: #2a3644;
+  --rule-strong: #3d4c5e;
+  --steel: #74aae0;
+  --steel-soft: #1b2a3a;
+  --low: #5fcc8d;
+  --low-bg: #12301f;
+  --moderate: #e4ab44;
+  --moderate-bg: #32250d;
+  --elevated: #ff8b80;
+  --elevated-bg: #361513;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.5rem, 4.2vw, 2.1rem); font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 1.22rem; font-weight: 600; }
+h3 { font-size: 1rem; font-weight: 600; font-family: var(--font-body); }
+p { margin: 0; }
+
+.num { font-family: var(--font-figure); font-variant-numeric: tabular-nums; }
+
+.eyebrow {
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+
+/* ---------- masthead ---------- */
+.masthead {
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  padding-block: 20px 18px;
+}
+.masthead .wrap { display: flex; flex-direction: column; gap: 6px; }
+.masthead .sub { color: var(--ink-soft); max-width: 62ch; font-size: 0.93rem; }
+.disclaimer {
+  font-size: 0.78rem; color: var(--ink-faint); margin-top: 6px;
+  padding-top: 8px; border-top: 1px dashed var(--rule);
+}
+
+/* ---------- ticker entry ---------- */
+.entry {
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--rule);
+  padding-block: 16px;
+}
+.entry-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 5px; flex: 1 1 220px; min-width: 0; }
+.field label { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-soft); }
+input[type="text"] {
+  font-family: var(--font-figure); font-size: 1rem; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 12px; border: 1px solid var(--rule-strong); border-radius: 3px;
+  background: var(--surface); color: var(--ink); width: 100%;
+}
+input[type="text"]:focus-visible { outline: 2px solid var(--steel); outline-offset: 1px; }
+button {
+  font-family: var(--font-body); font-size: 0.92rem; font-weight: 600;
+  padding: 11px 20px; border-radius: 3px; border: 1px solid var(--steel);
+  background: var(--steel); color: #fff; cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.picker { margin-top: 12px; display: flex; flex-direction: column; gap: 9px; }
+.sector-group { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.sector-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-faint); flex: 0 0 148px;
+  min-width: 0; }
+@media (max-width: 560px) { .sector-label { flex-basis: 100%; } }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; min-width: 0; }
+.chip {
+  font-family: var(--font-figure); font-size: 0.76rem; font-weight: 500;
+  padding: 4px 9px; border-radius: 3px; cursor: pointer;
+  border: 1px solid var(--rule-strong); background: var(--surface);
+  color: var(--ink-soft);
+}
+.chip:hover { border-color: var(--steel); color: var(--steel); }
+.chip[aria-pressed="true"] {
+  background: var(--steel); border-color: var(--steel); color: #fff;
+}
+.chip .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-right: 5px; vertical-align: 1px; }
+
+/* ---------- peer comparison ---------- */
+.peer-row { display: grid; grid-template-columns: 1fr auto auto;
+  gap: 10px; align-items: center; padding: 9px 0;
+  border-top: 1px solid var(--rule); }
+.peer-row:first-of-type { border-top: none; }
+.peer-label { font-size: 0.86rem; font-weight: 600; min-width: 0; }
+.peer-vals { font-family: var(--font-figure); font-variant-numeric: tabular-nums;
+  font-size: 0.88rem; white-space: nowrap; }
+.peer-verdict { font-size: 0.74rem; font-weight: 600; padding: 2px 8px;
+  border-radius: 10px; white-space: nowrap; }
+.peer-verdict.worse { background: var(--elevated-bg); color: var(--elevated); }
+.peer-verdict.better { background: var(--low-bg); color: var(--low); }
+.peer-bar { grid-column: 1 / -1; height: 5px; border-radius: 3px;
+  background: var(--surface-sunk); position: relative; overflow: hidden; }
+.peer-bar i { position: absolute; top: 0; bottom: 0; width: 3px;
+  background: var(--ink); }
+.peer-bar b { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.peer-note { font-size: 0.78rem; color: var(--ink-faint); margin-top: 3px;
+  grid-column: 1 / -1; }
+
+.notice {
+  margin-top: 10px; padding: 9px 12px; border-radius: 3px;
+  background: var(--moderate-bg); color: var(--moderate);
+  border: 1px solid currentColor; font-size: 0.85rem;
+}
+
+/* ---------- sections ---------- */
+section { padding-block: 26px; border-bottom: 1px solid var(--rule); }
+.sec-head { display: flex; align-items: baseline; gap: 10px;
+  flex-wrap: wrap; margin-bottom: 14px; }
+.sec-note { color: var(--ink-soft); font-size: 0.88rem; max-width: 70ch; }
+
+/* ---------- company overview ---------- */
+.co-name { font-size: clamp(1.3rem, 3.4vw, 1.75rem); }
+.co-meta { color: var(--ink-faint); font-size: 0.83rem; margin-top: 4px; }
+.co-meta span + span::before { content: " · "; }
+
+.synthetic {
+  margin-top: 12px; padding: 10px 13px; border-radius: 3px;
+  background: var(--moderate-bg); color: var(--moderate);
+  border-left: 3px solid currentColor; font-size: 0.86rem;
+}
+
+/* ---------- rating ---------- */
+.rating-grid { display: grid; grid-template-columns: minmax(170px, 215px) 1fr;
+  gap: 22px; align-items: start; }
+@media (max-width: 640px) { .rating-grid { grid-template-columns: 1fr; } }
+
+.badge { padding: 16px 14px; border-radius: 4px; text-align: center;
+  border: 1px solid currentColor; }
+.badge .eyebrow { color: inherit; opacity: 0.8; }
+.badge .level { font-family: var(--font-display); font-size: 1.85rem;
+  font-weight: 600; line-height: 1.15; white-space: nowrap; }
+.badge .score { font-family: var(--font-figure); font-size: 0.76rem;
+  opacity: 0.85; margin-top: 3px; }
+.badge.low { background: var(--low-bg); color: var(--low); }
+.badge.moderate { background: var(--moderate-bg); color: var(--moderate); }
+.badge.elevated { background: var(--elevated-bg); color: var(--elevated); }
+
+.why { margin: 0; padding: 0; list-style: none; display: flex;
+  flex-direction: column; gap: 7px; }
+.why li { display: flex; gap: 9px; font-size: 0.91rem; }
+.why li::before { content: "▸"; color: var(--ink-faint); flex: none; }
+
+.caveat {
+  margin-top: 14px; padding: 11px 13px; border-radius: 3px;
+  background: var(--elevated-bg); color: var(--elevated);
+  border-left: 3px solid currentColor;
+}
+.caveat strong { display: block; font-size: 0.92rem; }
+
+/* ---------- metric cards ---------- */
+.cards { display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 13px 14px; min-width: 0; }
+.card .label { display: flex; align-items: center; gap: 5px;
+  font-size: 0.76rem; font-weight: 600; color: var(--ink-soft);
+  letter-spacing: 0.03em; }
+.card .value { font-family: var(--font-figure); font-variant-numeric: tabular-nums;
+  font-size: 1.62rem; font-weight: 500; line-height: 1.25; margin-top: 5px;
+  overflow-wrap: anywhere; }
+.card .delta { font-family: var(--font-figure); font-size: 0.75rem; margin-top: 2px; }
+.card .hint { font-size: 0.78rem; color: var(--ink-faint); margin-top: 6px;
+  line-height: 1.4; }
+.up { color: var(--elevated); }
+.down { color: var(--low); }
+.flat { color: var(--ink-faint); }
+
+/* info tooltip */
+.info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%; flex: none;
+  border: 1px solid var(--ink-faint); color: var(--ink-faint);
+  font-size: 9px; font-weight: 700; cursor: help; font-family: var(--font-body);
+  background: none; padding: 0;
+}
+.info:hover, .info:focus-visible { border-color: var(--steel); color: var(--steel); }
+
+/* ---------- charts ---------- */
+.charts { display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.chart-box { background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 13px; min-width: 0; }
+.chart-title { font-size: 0.85rem; font-weight: 600; }
+.chart-sub { font-size: 0.74rem; color: var(--ink-faint); margin-bottom: 8px; }
+.chart-box svg { display: block; width: 100%; height: auto; }
+.missing { font-size: 0.84rem; color: var(--ink-faint); padding: 26px 0;
+  text-align: center; }
+
+/* ---------- signals ---------- */
+.signals { display: flex; flex-direction: column; gap: 2px; }
+.sig { border: 1px solid var(--rule); border-radius: 3px;
+  background: var(--surface); overflow: hidden; }
+.sig + .sig { margin-top: 7px; }
+.sig-head { display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px; cursor: pointer; width: 100%; text-align: left;
+  background: none; border: none; color: inherit; font-family: inherit;
+  font-size: inherit; font-weight: 400; border-radius: 0; }
+.sig-head:hover { background: var(--surface-sunk); }
+.sig-stripe { width: 3px; align-self: stretch; flex: none; border-radius: 2px; }
+.sig-body { flex: 1; min-width: 0; }
+.sig-name { font-weight: 600; font-size: 0.91rem; }
+.sig-detail { font-size: 0.83rem; color: var(--ink-soft); margin-top: 1px; }
+.sig-why { padding: 0 12px 12px 25px; font-size: 0.86rem; color: var(--ink-soft);
+  max-width: 76ch; }
+.sig-caret { color: var(--ink-faint); font-size: 0.7rem; flex: none;
+  margin-top: 4px; transition: transform 0.15s; }
+.sig-head[aria-expanded="true"] .sig-caret { transform: rotate(90deg); }
+
+/* ---------- stress test ---------- */
+.slider-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 16px; }
+input[type="range"] { flex: 1 1 240px; min-width: 150px; accent-color: var(--steel); }
+.slider-val { font-family: var(--font-figure); font-size: 1.15rem; font-weight: 600;
+  min-width: 3.4em; color: var(--steel); }
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .compare { grid-template-columns: 1fr; } }
+.col { background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 13px 14px; min-width: 0; }
+.col.stressed { border-color: var(--rule-strong); background: var(--surface-sunk); }
+.col h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-soft); margin-bottom: 9px; }
+.row { display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; padding: 6px 0; border-top: 1px solid var(--rule); }
+.row:first-of-type { border-top: none; }
+.row .k { font-size: 0.83rem; color: var(--ink-soft); }
+.row .v { font-family: var(--font-figure); font-variant-numeric: tabular-nums;
+  font-size: 1.02rem; font-weight: 500; }
+
+.explain { margin-top: 14px; padding: 12px 14px; border-radius: 3px;
+  background: var(--steel-soft); border-left: 3px solid var(--steel);
+  font-size: 0.89rem; max-width: 78ch; }
+
+/* ---------- prose ---------- */
+.prose { max-width: 70ch; display: flex; flex-direction: column; gap: 11px; }
+.prose p { font-size: 0.95rem; }
+.attribution { font-size: 0.78rem; color: var(--ink-faint); margin-top: 10px;
+  padding-top: 8px; border-top: 1px solid var(--rule); max-width: 70ch; }
+
+/* ---------- watch ---------- */
+.watch-head { padding: 12px 14px; border-radius: 3px; font-size: 0.93rem;
+  margin-bottom: 12px; border-left: 3px solid currentColor; max-width: 80ch; }
+.watch-head.low { background: var(--low-bg); color: var(--low); }
+.watch-head.warn { background: var(--moderate-bg); color: var(--moderate); }
+
+/* ---------- glossary ---------- */
+.gloss { display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); }
+.term { background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 12px 13px; min-width: 0; }
+.term dt { font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
+.term dd { margin: 0; font-size: 0.83rem; color: var(--ink-soft); line-height: 1.5; }
+
+/* ---------- table ---------- */
+.scroll-x { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.82rem;
+  font-family: var(--font-figure); font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 9px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--rule); }
+th:first-child, td:first-child { text-align: left; }
+thead th { font-family: var(--font-body); font-size: 0.72rem; font-weight: 600;
+  color: var(--ink-soft); letter-spacing: 0.04em; text-transform: uppercase;
+  border-bottom: 1px solid var(--rule-strong); }
+
+details { margin-top: 12px; }
+summary { cursor: pointer; font-size: 0.85rem; color: var(--steel);
+  font-weight: 500; padding: 5px 0; }
+summary:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+
+/* ---------- footer ---------- */
+footer { padding-block: 22px 30px; color: var(--ink-faint); font-size: 0.8rem; }
+footer .wrap { display: flex; flex-direction: column; gap: 9px; max-width: 80ch; }
+.pipeline { font-family: var(--font-figure); font-size: 0.75rem;
+  color: var(--ink-soft); background: var(--surface-sunk);
+  padding: 9px 12px; border-radius: 3px; overflow-x: auto; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Credit screening tool</p>
+    <h1>Credit Health &amp; Restructuring Watch</h1>
+    <p class="sub">Analyze a public company's leverage, debt-service ability,
+      cash flow, and financial trends to identify potential signs of credit
+      deterioration.</p>
+    <p class="disclaimer">This tool is for educational and analytical purposes
+      and is not investment or lending advice.</p>
+  </div>
+</header>
+
+<div class="entry">
+  <div class="wrap">
+    <form class="entry-row" id="entry-form">
+      <div class="field">
+        <label for="ticker">Enter company ticker</label>
+        <input type="text" id="ticker" name="ticker" placeholder="AAL"
+               autocomplete="off" spellcheck="false" maxlength="8"
+               aria-describedby="entry-help">
+      </div>
+      <button type="submit">Analyze Company</button>
+    </form>
+    <div class="picker" id="picker" role="group" aria-label="Companies available"></div>
+    <p id="entry-help" class="disclaimer" style="border:none;padding-top:6px;margin-top:4px">
+      This hosted version covers the <span id="co-count" class="num"></span>
+      companies listed above, analyzed on <span id="gen-date" class="num"></span>.
+      Type any of their tickers above, or click one. The Streamlit app runs the
+      same Python engine live against any ticker on request.</p>
+    <div id="entry-notice" class="notice" hidden></div>
+  </div>
+</div>
+
+<main id="report" aria-live="polite"></main>
+
+<footer>
+  <div class="wrap">
+    <div class="pipeline" id="pipeline">Ticker → Financial Data → Credit Metrics → Signal Detection → Stress Test → Summary</div>
+    <p>Every figure on this page was computed in Python before publication —
+      including each position of the stress-test slider. The page performs no
+      financial arithmetic of its own; moving the slider looks up a value the
+      engine already produced.</p>
+    <p id="footer-source"></p>
+  </div>
+</footer>
+
+<script id="payload" type="application/json">__DATA__</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA = JSON.parse(document.getElementById("payload").textContent);
+  var BY_TICKER = {};
+  DATA.companies.forEach(function (c) { BY_TICKER[c.ticker] = c; });
+
+  var SYMBOLS = { USD: "$", EUR: "€", GBP: "£", JPY: "¥" };
+
+  /* ---------- formatting ---------- */
+
+  function x(v) { return v === null || v === undefined ? "n/a" : v.toFixed(2) + "x"; }
+
+  function money(v, co) {
+    if (v === null || v === undefined) return "n/a";
+    var sym = SYMBOLS[co.currency] || co.currency + " ";
+    var sign = v < 0 ? "-" : "";
+    var mag = Math.abs(v);
+    if (co.units === "millions") {
+      if (mag >= 1000) return sign + sym + (mag / 1000).toFixed(1) + "bn";
+      return sign + sym + Math.round(mag).toLocaleString("en-US") + "m";
+    }
+    return sign + sym + Math.round(mag).toLocaleString("en-US");
+  }
+
+  function pct(v, signed) {
+    if (v === null || v === undefined) return "n/a";
+    var s = (v * 100).toFixed(1) + "%";
+    return signed && v > 0 ? "+" + s : s;
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch];
+    });
+  }
+
+  function bandClass(label) {
+    if (label.indexOf("Low") === 0) return "low";
+    if (label.indexOf("Moderate") === 0) return "moderate";
+    if (label.indexOf("Elevated") === 0) return "elevated";
+    return "moderate";
+  }
+
+  /* Change indicator. For leverage a RISE is bad, so the colour inverts —
+     getting this backwards would make deterioration look like improvement. */
+  function delta(now, before, higherIsWorse) {
+    if (now === null || now === undefined || before === null || before === undefined) {
+      return "";
+    }
+    var d = now - before;
+    if (Math.abs(d) < 0.005) {
+      return '<div class="delta flat">unchanged vs prior year</div>';
+    }
+    var worse = higherIsWorse ? d > 0 : d < 0;
+    var arrow = d > 0 ? "↑" : "↓";
+    return '<div class="delta ' + (worse ? "up" : "down") + '">' +
+      arrow + " " + (d > 0 ? "+" : "") + d.toFixed(2) + "x vs prior year</div>";
+  }
+
+  /* ---------- charts ----------
+     Hand-drawn SVG. The y-axis always includes zero: a truncated axis makes a
+     small change look dramatic, which is the wrong habit for a finance tool. */
+
+  var W = 320, H = 170, PAD_L = 38, PAD_R = 10, PAD_T = 10, PAD_B = 26;
+
+  function scaleY(v, lo, hi) {
+    var span = hi - lo || 1;
+    return PAD_T + (hi - v) / span * (H - PAD_T - PAD_B);
+  }
+
+  function scaleX(i, n) {
+    if (n <= 1) return PAD_L + (W - PAD_L - PAD_R) / 2;
+    return PAD_L + i * (W - PAD_L - PAD_R) / (n - 1);
+  }
+
+  function niceTicks(lo, hi) {
+    var span = hi - lo || 1;
+    var raw = span / 4;
+    var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var step = mag;
+    [1, 2, 2.5, 5, 10].some(function (m) {
+      if (mag * m >= raw) { step = mag * m; return true; }
+      return false;
+    });
+    var ticks = [], t = Math.ceil(lo / step) * step;
+    for (; t <= hi + step * 0.001 && ticks.length < 7; t += step) {
+      ticks.push(Math.abs(t) < step * 0.001 ? 0 : t);
+    }
+    return ticks;
+  }
+
+  function fmtTick(v) {
+    if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + "k";
+    if (Number.isInteger(v)) return String(v);
+    return v.toFixed(1);
+  }
+
+  function axis(ticks, lo, hi, years) {
+    var out = "";
+    ticks.forEach(function (t) {
+      var y = scaleY(t, lo, hi);
+      out += '<line x1="' + PAD_L + '" y1="' + y.toFixed(1) + '" x2="' + (W - PAD_R) +
+        '" y2="' + y.toFixed(1) + '" stroke="var(--rule)" stroke-width="1"' +
+        (t === 0 ? ' stroke-opacity="1"' : ' stroke-opacity="0.65"') + '/>';
+      out += '<text x="' + (PAD_L - 6) + '" y="' + (y + 3.5).toFixed(1) +
+        '" text-anchor="end" font-size="9" font-family="var(--font-figure)" ' +
+        'fill="var(--ink-faint)">' + fmtTick(t) + "</text>";
+    });
+    years.forEach(function (yr, i) {
+      out += '<text x="' + scaleX(i, years.length).toFixed(1) + '" y="' + (H - 8) +
+        '" text-anchor="middle" font-size="9" font-family="var(--font-figure)" ' +
+        'fill="var(--ink-faint)">' + yr + "</text>";
+    });
+    return out;
+  }
+
+  function lineChart(rows, keys, colors) {
+    var vals = [];
+    keys.forEach(function (k) {
+      rows.forEach(function (r) {
+        if (r[k] !== null && r[k] !== undefined) vals.push(r[k]);
+      });
+    });
+    if (!vals.length) return null;
+
+    var lo = Math.min(0, Math.min.apply(null, vals));
+    var hi = Math.max.apply(null, vals);
+    hi = hi + (hi - lo) * 0.12 || 1;
+    var ticks = niceTicks(lo, hi);
+    hi = Math.max(hi, ticks[ticks.length - 1]);
+    lo = Math.min(lo, ticks[0]);
+
+    var years = rows.map(function (r) { return r.year; });
+    var svg = axis(ticks, lo, hi, years);
+
+    keys.forEach(function (k, ki) {
+      var pts = [];
+      rows.forEach(function (r, i) {
+        if (r[k] === null || r[k] === undefined) return;
+        pts.push([scaleX(i, rows.length), scaleY(r[k], lo, hi)]);
+      });
+      if (!pts.length) return;
+      svg += '<polyline fill="none" stroke="' + colors[ki] + '" stroke-width="2" ' +
+        'stroke-linejoin="round" stroke-linecap="round" points="' +
+        pts.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ") +
+        '"/>';
+      pts.forEach(function (p) {
+        svg += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) +
+          '" r="2.6" fill="' + colors[ki] + '"/>';
+      });
+    });
+    return svg;
+  }
+
+  function barChart(rows, key) {
+    var vals = rows.filter(function (r) {
+      return r[key] !== null && r[key] !== undefined;
+    }).map(function (r) { return r[key]; });
+    if (!vals.length) return null;
+
+    var lo = Math.min(0, Math.min.apply(null, vals));
+    var hi = Math.max(0, Math.max.apply(null, vals));
+    var pad = (hi - lo) * 0.12 || 1;
+    hi += pad; lo -= (lo < 0 ? pad : 0);
+    var ticks = niceTicks(lo, hi);
+    hi = Math.max(hi, ticks[ticks.length - 1]);
+    lo = Math.min(lo, ticks[0]);
+
+    var years = rows.map(function (r) { return r.year; });
+    var svg = axis(ticks, lo, hi, years);
+    var zero = scaleY(0, lo, hi);
+    var slot = (W - PAD_L - PAD_R) / rows.length;
+    var bw = Math.min(34, slot * 0.58);
+
+    rows.forEach(function (r, i) {
+      var v = r[key];
+      if (v === null || v === undefined) return;
+      var cx = PAD_L + slot * (i + 0.5);
+      var y = scaleY(v, lo, hi);
+      var top = Math.min(y, zero), h = Math.abs(y - zero);
+      /* Negative bars are red. A loss-making year drawn in green reads as
+         good news at a glance, which is exactly backwards. */
+      svg += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + top.toFixed(1) +
+        '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 1).toFixed(1) +
+        '" rx="1" fill="' + (v < 0 ? "var(--elevated)" : "var(--low)") + '"/>';
+    });
+    svg += '<line x1="' + PAD_L + '" y1="' + zero.toFixed(1) + '" x2="' + (W - PAD_R) +
+      '" y2="' + zero.toFixed(1) + '" stroke="var(--rule-strong)" stroke-width="1"/>';
+    return svg;
+  }
+
+  function chartBox(title, sub, inner, emptyMsg) {
+    var body = inner
+      ? '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' +
+        esc(title) + '">' + inner + "</svg>"
+      : '<p class="missing">' + esc(emptyMsg) + "</p>";
+    return '<div class="chart-box"><p class="chart-title">' + esc(title) +
+      '</p><p class="chart-sub">' + esc(sub) + "</p>" + body + "</div>";
+  }
+
+  /* ---------- glossary (shared with the metric tooltips) ---------- */
+
+  var GLOSSARY = [
+    ["EBITDA",
+     "Earnings Before Interest, Taxes, Depreciation and Amortization. Net income with four things added back: interest (which depends on how the company chose to borrow), taxes (which depend on jurisdiction), and depreciation and amortization (accounting charges spreading an old purchase over years, where no cash leaves this year). What remains approximates the cash the core business generates before financing decisions. Its weakness is that it ignores the cost of replacing equipment, which is why free cash flow is shown too."],
+    ["Leverage",
+     "How much debt a company carries relative to its ability to service it, never the dollar amount alone. $5bn is trivial for a very large company and fatal for a mid-size one, so leverage is always a ratio."],
+    ["Net Debt / EBITDA",
+     "Total debt minus cash, divided by EBITDA. Measures how much debt the company has relative to its earnings after accounting for cash. Always lower than or equal to Debt/EBITDA, and generally the more realistic measure. One caveat: cash trapped in a foreign subsidiary, or needed for daily operations, cannot actually repay debt."],
+    ["Debt / EBITDA",
+     "Total debt divided by EBITDA: how many years of EBITDA it would take to repay all borrowings. Rough convention: under 2x conservative, 2-4x normal for a leveraged but healthy business, 4-6x genuinely leveraged, above 6x stressed. These bands vary considerably by industry."],
+    ["Interest Coverage",
+     "EBITDA divided by interest expense: how many times over the company can pay this year's interest from this year's operating earnings. Above 6x comfortable, 3-6x adequate, 1.5-3x tight, below 1.5x means the company can barely afford its own debt. The most time-critical metric, because interest is due on fixed dates and missing a payment is an event of default."],
+    ["Free Cash Flow",
+     "Operating cash flow minus capital expenditure: cash genuinely left over after running the business and maintaining its equipment. Negative free cash flow means the company must find money elsewhere every year, and if it borrows, leverage rises mechanically year after year with no single dramatic event."],
+    ["EBITDA Margin",
+     "EBITDA divided by revenue: operating earnings kept per dollar of sales. Useful for separating a volume problem from a profitability problem. If revenue is flat but margin is falling, the company is selling just as much and keeping less of it."],
+    ["Covenant",
+     "A condition in a credit agreement, often a maximum leverage ratio or a minimum interest coverage ratio. Breaching one can allow lenders to demand immediate repayment, which is frequently what starts a restructuring process."]
+  ];
+  var GLOSS_MAP = {};
+  GLOSSARY.forEach(function (g) { GLOSS_MAP[g[0]] = g[1]; });
+
+  function infoBtn(term) {
+    return '<button type="button" class="info" title="' + esc(GLOSS_MAP[term]) +
+      '" aria-label="What is ' + esc(term) + '?">i</button>';
+  }
+
+  /* ---------- section builders ---------- */
+
+  function metricCard(term, value, hint, deltaHtml) {
+    return '<div class="card"><div class="label">' + esc(term) + infoBtn(term) +
+      '</div><div class="value">' + esc(value) + "</div>" + (deltaHtml || "") +
+      '<p class="hint">' + esc(hint) + "</p></div>";
+  }
+
+  function renderOverview(co) {
+    var yrs = co.years, last = yrs[yrs.length - 1];
+    var meta = ["Ticker " + co.ticker];
+    if (co.industry) meta.push(co.industry + (co.sector ? " (" + co.sector + ")" : ""));
+    else if (co.sector) meta.push(co.sector);
+    meta.push("Fiscal years " + yrs[0].year + "–" + last.year);
+    meta.push(co.currency + " " + co.units);
+
+    var html = '<section><h2 class="co-name">' + esc(co.shortName) + "</h2>" +
+      '<p class="co-meta">' + meta.map(function (m) {
+        return "<span>" + esc(m) + "</span>";
+      }).join("") + "</p>";
+
+    if (co.isSynthetic) {
+      html += '<div class="synthetic"><strong>Synthetic teaching data.</strong> ' +
+        "These figures were invented to demonstrate the tool and describe no " +
+        "real company.</div>";
+    }
+    return html + "</section>";
+  }
+
+  function renderRating(co) {
+    var r = co.rating, cls = bandClass(r.label);
+    var html = '<section><div class="sec-head"><h2>Credit health rating</h2></div>' +
+      '<div class="rating-grid"><div><div class="badge ' + cls + '">' +
+      '<p class="eyebrow">Credit stress</p><div class="level">' +
+      esc(r.label.replace(" Stress", "")) + "</div>";
+    if (r.ratio !== null) {
+      html += '<div class="score">' + r.score + " of " + r.maxScore +
+        " points · " + Math.round(r.ratio * 100) + "%</div>";
+    }
+    html += "</div></div><div>";
+    html += "<p style=\"font-weight:600;margin-bottom:9px\">" +
+      esc(co.narrative.headline) + "</p>";
+    html += '<ul class="why">' + co.narrative.ratingReasons.map(function (x) {
+      return "<li><span>" + esc(x) + "</span></li>";
+    }).join("") + "</ul></div></div>";
+
+    co.caveats.forEach(function (c) {
+      html += '<div class="caveat"><strong>' + esc(c.title) + "</strong>" +
+        "<details><summary>Why, and what an analyst does instead</summary><p>" +
+        esc(c.explanation).replace(/\n\n/g, "</p><p>") + "</p></details></div>";
+    });
+
+    html += "<details><summary>How this rating is calculated (every threshold)</summary>" +
+      '<p class="sec-note" style="margin:8px 0">Five factors are scored against ' +
+      "fixed thresholds. Points are summed and divided by the maximum that could " +
+      "actually be assessed, so patchy disclosure does not flatter the result. " +
+      "Below 30% = Low, 30–60% = Moderate, above 60% = Elevated. There is no " +
+      "machine-learning model: every point traces to one stated threshold.</p>" +
+      '<div class="scroll-x"><table><thead><tr><th>Factor</th><th>Points</th>' +
+      "<th>What the data showed</th></tr></thead><tbody>" +
+      r.factors.map(function (f) {
+        return "<tr><td>" + esc(f.name) + "</td><td>" +
+          (f.points === null ? "n/a" : f.points + " / " + f.maxPoints) +
+          '</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">' +
+          esc(f.observation) + "<br><span style=\"color:var(--ink-faint);font-size:0.9em\">" +
+          esc(f.thresholdNote) + "</span></td></tr>";
+      }).join("") + "</tbody></table></div></details>";
+
+    return html + "</section>";
+  }
+
+  function renderMetrics(co) {
+    var yrs = co.years, last = yrs[yrs.length - 1];
+    var prev = yrs.length > 1 ? yrs[yrs.length - 2] : null;
+
+    var html = '<section><div class="sec-head"><h2>Key credit metrics</h2>' +
+      '<p class="sec-note">Fiscal year ' + last.year + "</p></div>" +
+      '<div class="cards">';
+
+    html += metricCard("Net Debt / EBITDA", x(last.netDebtToEbitda),
+      "Debt after cash, relative to annual earnings.",
+      delta(last.netDebtToEbitda, prev && prev.netDebtToEbitda, true));
+    html += metricCard("Debt / EBITDA", x(last.debtToEbitda),
+      "Years of EBITDA needed to repay all borrowings.",
+      delta(last.debtToEbitda, prev && prev.debtToEbitda, true));
+    html += metricCard("Interest Coverage", x(last.interestCoverage),
+      "Times over EBITDA covers the interest bill.",
+      delta(last.interestCoverage, prev && prev.interestCoverage, false));
+    html += metricCard("Free Cash Flow", money(last.freeCashFlow, co),
+      "Operating cash flow minus capex.", "");
+    html += "</div>";
+
+    /* Any blank card states its reason, so "n/a" is never mysterious. */
+    var blanks = [];
+    ["netDebtToEbitda", "debtToEbitda", "interestCoverage", "freeCashFlow"]
+      .forEach(function (k) {
+        var snake = { netDebtToEbitda: "net_debt_to_ebitda",
+                      debtToEbitda: "debt_to_ebitda",
+                      interestCoverage: "interest_coverage",
+                      freeCashFlow: "free_cash_flow" }[k];
+        if ((last[k] === null || last[k] === undefined) && last.reasons[snake]) {
+          blanks.push(last.reasons[snake]);
+        }
+      });
+    if (blanks.length) {
+      html += '<p class="sec-note" style="margin-top:9px">Shown as n/a because: ' +
+        esc(blanks.join("; ")) + ".</p>";
+    }
+
+    html += '<div class="cards" style="margin-top:10px">' +
+      metricCard("EBITDA Margin", pct(last.ebitdaMargin),
+        "Operating earnings per dollar of sales.", "") +
+      '<div class="card"><div class="label">Revenue growth</div>' +
+      '<div class="value">' + esc(pct(last.revenueGrowth, true)) + "</div>" +
+      '<p class="hint">Year-over-year change in the top line.</p></div>' +
+      '<div class="card"><div class="label">Net debt</div>' +
+      '<div class="value">' + esc(money(last.netDebt, co)) + "</div>" +
+      '<p class="hint">Total debt minus cash.</p></div>' +
+      "</div>";
+
+    return html + "</section>";
+  }
+
+  function renderTrends(co) {
+    var rows = co.years;
+    var lev = lineChart(rows, ["netDebtToEbitda", "debtToEbitda"],
+      ["var(--elevated)", "var(--moderate)"]);
+    var cov = lineChart(rows, ["interestCoverage"], ["var(--steel)"]);
+    var fcf = barChart(rows, "freeCashFlow");
+
+    var html = '<section><div class="sec-head"><h2>Historical trends</h2>' +
+      '<p class="sec-note">Three to five years is enough to see a direction of ' +
+      "travel, which usually matters more than any single year's level. The " +
+      "vertical axis always includes zero.</p></div>" +
+      '<div class="charts">';
+
+    html += chartBox("Leverage", "Net Debt/EBITDA (red) and Debt/EBITDA (amber) — higher is worse",
+      lev, "Not available: net debt or EBITDA missing for every year.");
+    html += chartBox("Interest coverage", "EBITDA ÷ interest expense — lower is worse",
+      cov, "Not available: EBITDA or interest expense missing for every year.");
+    html += chartBox("Free cash flow", co.currency + " " + co.units +
+      " — red bars are years the business did not fund itself",
+      fcf, "Not available: operating cash flow or capex missing for every year.");
+    html += "</div>";
+
+    html += "<details><summary>See the underlying figures</summary>" +
+      '<div class="scroll-x"><table><thead><tr><th>Year</th><th>Revenue</th>' +
+      "<th>EBITDA</th><th>Margin</th><th>Total debt</th><th>Cash</th>" +
+      "<th>Debt/EB</th><th>NetD/EB</th><th>Coverage</th><th>FCF</th></tr></thead><tbody>";
+    rows.forEach(function (r) {
+      function n(v) {
+        return v === null || v === undefined ? "—"
+          : Math.round(v).toLocaleString("en-US");
+      }
+      html += "<tr><td>" + r.year + "</td><td>" + n(r.revenue) + "</td><td>" +
+        n(r.ebitda) + "</td><td>" + pct(r.ebitdaMargin) + "</td><td>" +
+        n(r.totalDebt) + "</td><td>" + n(r.cash) + "</td><td>" +
+        x(r.debtToEbitda) + "</td><td>" + x(r.netDebtToEbitda) + "</td><td>" +
+        x(r.interestCoverage) + "</td><td>" + n(r.freeCashFlow) + "</td></tr>";
+    });
+    html += '</tbody></table></div><p class="sec-note" style="margin-top:8px">' +
+      "Figures in " + esc(co.currency + " " + co.units) + ". A dash is data the " +
+      "source did not provide; it is never replaced with an estimate.</p></details>";
+
+    return html + "</section>";
+  }
+
+  function renderNarrative(co) {
+    return '<section><div class="sec-head"><h2>What is happening?</h2></div>' +
+      '<div class="prose"><p>' + esc(co.narrative.whatIsHappening) + "</p></div>" +
+      '<h3 style="margin-top:16px;margin-bottom:6px">Why this matters</h3>' +
+      '<div class="prose"><p>' + esc(co.narrative.whyItMatters) + "</p></div>" +
+      '<p class="attribution">Written by the Python explanation layer from the ' +
+      "figures above. No language model was involved, so the wording is " +
+      "identical on every run.</p></section>";
+  }
+
+  function renderSignals(co) {
+    var order = { fired: 0, unknown: 1, clear: 2 };
+    var sigs = co.signals.slice().sort(function (a, b) {
+      return order[a.status] - order[b.status];
+    });
+    var fired = co.signals.filter(function (s) { return s.status === "fired"; }).length;
+
+    var html = '<section><div class="sec-head"><h2>Key credit signals</h2>' +
+      '<p class="sec-note">' + fired + " of " + co.signals.length +
+      " triggered. No single signal means a company is in trouble — each has " +
+      "an innocent explanation as well as a worrying one. What matters is how " +
+      "many fire together and whether they tell one coherent story.</p></div>" +
+      '<div class="signals">';
+
+    sigs.forEach(function (s, i) {
+      var color = s.status === "fired" ? "var(--elevated)"
+        : s.status === "clear" ? "var(--low)" : "var(--ink-faint)";
+      var id = "sig-" + i;
+      html += '<div class="sig"><button class="sig-head" type="button" ' +
+        'aria-expanded="false" aria-controls="' + id + '" data-toggle="' + id + '">' +
+        '<span class="sig-stripe" style="background:' + color + '"></span>' +
+        '<span class="sig-body"><span class="sig-name">' + esc(s.name) +
+        "</span>" + (s.status === "clear"
+          ? ' <span style="color:var(--low);font-size:0.8rem">not a concern</span>'
+          : s.status === "unknown"
+          ? ' <span style="color:var(--ink-faint);font-size:0.8rem">could not assess</span>'
+          : "") +
+        '<span class="sig-detail">' + esc(s.detail) + "</span></span>" +
+        '<span class="sig-caret">▶</span></button>' +
+        '<div class="sig-why" id="' + id + '" hidden>' + esc(s.whyItMatters) +
+        "</div></div>";
+    });
+
+    html += "</div>";
+    if (co.signals.some(function (s) { return s.status === "unknown"; })) {
+      html += '<p class="sec-note" style="margin-top:10px">A signal shown as ' +
+        "“could not assess” is not the same as “no problem”. " +
+        "It means the data needed to check it was unavailable.</p>";
+    }
+    return html + "</section>";
+  }
+
+  function renderStressTest(co) {
+    return '<section><div class="sec-head"><h2>Downside stress test</h2>' +
+      '<p class="sec-note">What happens if EBITDA falls? Debt, cash and interest ' +
+      "expense are held constant, so the single effect of lower earnings is " +
+      "visible on its own.</p></div>" +
+      '<div class="slider-row"><label for="haircut" style="font-size:0.85rem">' +
+      "EBITDA decline</label>" +
+      '<input type="range" id="haircut" min="0" max="50" step="5" value="20" ' +
+      'aria-describedby="scenario-explain">' +
+      '<span class="slider-val num" id="haircut-val">20%</span></div>' +
+      '<div id="scenario-panel"></div></section>';
+  }
+
+  function paintScenario(co, pctVal) {
+    var sc = co.scenarios[String(pctVal)];
+    var panel = document.getElementById("scenario-panel");
+    if (!sc) { panel.innerHTML = ""; return; }
+
+    if (!sc.meaningful) {
+      panel.innerHTML = '<div class="caveat"><strong>Scenario not applicable</strong>' +
+        "<p>" + esc(sc.note) + "</p></div>";
+      return;
+    }
+
+    function rowHtml(k, v) {
+      return '<div class="row"><span class="k">' + esc(k) +
+        '</span><span class="v">' + esc(v) + "</span></div>";
+    }
+
+    panel.innerHTML = '<div class="compare"><div class="col"><h3>Current</h3>' +
+      rowHtml("EBITDA", money(sc.baseEbitda, co)) +
+      rowHtml("Net Debt / EBITDA", x(sc.base.netDebtToEbitda)) +
+      rowHtml("Debt / EBITDA", x(sc.base.debtToEbitda)) +
+      rowHtml("Interest Coverage", x(sc.base.interestCoverage)) +
+      '</div><div class="col stressed"><h3>EBITDA falls ' + pctVal + "%</h3>" +
+      rowHtml("EBITDA", money(sc.stressedEbitda, co)) +
+      rowHtml("Net Debt / EBITDA", x(sc.stressed.netDebtToEbitda)) +
+      rowHtml("Debt / EBITDA", x(sc.stressed.debtToEbitda)) +
+      rowHtml("Interest Coverage", x(sc.stressed.interestCoverage)) +
+      '</div></div><div class="explain" id="scenario-explain">' +
+      esc(sc.explanation) + "</div>";
+  }
+
+
+  function renderPeers(co) {
+    var p = co.peers;
+    if (!p) return "";
+
+    var html = '<section><div class="sec-head"><h2>Industry comparison</h2>' +
+      '<p class="sec-note">Every threshold used in the rating is a general ' +
+      "convention. The same leverage means different things in different " +
+      "industries, so the figures below compare this company against the " +
+      "median of its sector in this data set.</p></div>";
+
+    if (!p.available) {
+      html += '<div class="watch-head warn">' + esc(p.reason) + "</div>";
+      return html + "</section>";
+    }
+
+    html += '<div class="col">';
+    p.metrics.forEach(function (m) {
+      if (m.companyValue === null || m.peerMedian === null) {
+        html += '<div class="peer-row"><span class="peer-label">' +
+          esc(m.label) + '</span><span class="peer-vals">n/a</span>' +
+          '<span></span><p class="peer-note">' + esc(m.sentence) + "</p></div>";
+        return;
+      }
+      var worse = m.higherIsWorse
+        ? m.companyValue > m.peerMedian
+        : m.companyValue < m.peerMedian;
+      var fmt = m.key === "ebitdaMargin"
+        ? function (v) { return (v * 100).toFixed(1) + "%"; }
+        : function (v) { return v.toFixed(2) + "x"; };
+
+      /* The bar is a visual aid only; the numbers beside it are the result.
+         Scale is capped so one extreme company cannot flatten the rest. */
+      var span = Math.max(Math.abs(m.companyValue), Math.abs(m.peerMedian)) * 1.15 || 1;
+      var medPos = Math.min(100, Math.abs(m.peerMedian) / span * 100);
+      var coPos = Math.min(100, Math.abs(m.companyValue) / span * 100);
+      var lo = Math.min(medPos, coPos), hi = Math.max(medPos, coPos);
+
+      html += '<div class="peer-row"><span class="peer-label">' + esc(m.label) +
+        '</span><span class="peer-vals">' + fmt(m.companyValue) +
+        '<span style="color:var(--ink-faint)"> vs ' + fmt(m.peerMedian) +
+        ' median</span></span><span class="peer-verdict ' +
+        (worse ? "worse" : "better") + '">' +
+        (worse ? "worse" : "better") + ' than median</span>' +
+        '<div class="peer-bar"><b style="left:' + lo.toFixed(1) + '%;width:' +
+        Math.max(hi - lo, 0.8).toFixed(1) + '%;background:' +
+        (worse ? "var(--elevated)" : "var(--low)") + ';opacity:0.35"></b>' +
+        '<i style="left:' + medPos.toFixed(1) + '%;background:var(--ink-faint)"></i>' +
+        '<i style="left:' + coPos.toFixed(1) + '%"></i></div>' +
+        '<p class="peer-note">' + Math.round(m.percentile) +
+        "th percentile of " + m.peersUsed + " peers" +
+        (m.peersDropped ? " (" + m.peersDropped +
+          " excluded: metric not computable)" : "") + "</p></div>";
+    });
+    html += "</div>";
+
+    html += '<p class="sec-note" style="margin-top:10px">Compared against ' +
+      p.peerCount + " " + esc(p.sector) + " companies in this set: " +
+      esc(p.peerTickers.join(", ")) + ".</p>";
+
+    html += "<details><summary>How this comparison is built, and its limits</summary>" +
+      '<p class="sec-note" style="margin:7px 0">Medians are used rather than ' +
+      "averages because credit ratios carry severe outliers \u2014 a single " +
+      "company with near-zero EBITDA produces a reading in the hundreds, which " +
+      "would destroy an average. A company is never its own peer, and the " +
+      "synthetic teaching companies are excluded from every median. Peers " +
+      "whose metric could not be computed are dropped rather than counted as " +
+      "zero, and the count of dropped peers is shown above.</p>" +
+      '<p class="sec-note" style="margin:7px 0"><strong>Two limits worth ' +
+      "stating.</strong> First, grouping is by broad sector rather than narrow " +
+      "industry, because narrow industry groups in this set are too small to " +
+      "form a credible median \u2014 so an airline may be compared against " +
+      "other industrials. Second, a median needs enough peers to mean " +
+      "anything; sectors with fewer than four are shown without a " +
+      "comparison rather than with a misleading one.</p></details>";
+
+    return html + "</section>";
+  }
+
+  function renderWatch(co) {
+    var w = co.restructuringWatch;
+    var isLow = bandClass(co.rating.label) === "low";
+    var html = '<section><div class="sec-head"><h2>Restructuring watch</h2></div>' +
+      '<div class="watch-head ' + (isLow ? "low" : "warn") + '">' +
+      esc(w.headline) + "</div>";
+    w.items.forEach(function (it) {
+      html += "<details><summary>" + esc(it.area) + "</summary>" +
+        '<p class="sec-note" style="margin:6px 0 10px">' + esc(it.why) + "</p></details>";
+    });
+    html += '<p class="attribution">This section identifies areas to investigate. ' +
+      "It does not design a restructuring and makes no prediction about default " +
+      "or bankruptcy — neither is supportable from the figures screened here.</p>";
+    return html + "</section>";
+  }
+
+  function renderGlossary() {
+    return '<section><div class="sec-head"><h2>Financial terms</h2>' +
+      '<p class="sec-note">Every term used on this page, defined.</p></div>' +
+      '<div class="gloss">' + GLOSSARY.map(function (g) {
+        return '<dl class="term"><dt>' + esc(g[0]) + "</dt><dd>" + esc(g[1]) +
+          "</dd></dl>";
+      }).join("") + "</div></section>";
+  }
+
+  function renderLimits(co) {
+    var html = '<section><div class="sec-head"><h2>Data sources and limitations</h2></div>' +
+      '<div class="prose"><p><strong>Source:</strong> ' + esc(co.source) + "</p>" +
+      '<p class="sec-note">' + esc(co.provenance) + "</p>";
+
+    Object.keys(co.dataNotes || {}).forEach(function (k) {
+      html += '<p class="sec-note"><em>' + esc(k) + ":</em> " +
+        esc(co.dataNotes[k]) + "</p>";
+    });
+    if (co.missingLatest.length) {
+      html += '<p class="sec-note"><strong>Missing in the latest year:</strong> ' +
+        esc(co.missingLatest.join(", ")) + ". Metrics depending on these show " +
+        "n/a rather than an estimate.</p>";
+    }
+    html += "</div>";
+
+    html += '<h3 style="margin-top:16px;margin-bottom:7px">What this tool cannot see</h3>' +
+      '<div class="gloss">' + [
+        ["Debt maturity dates", "The most important gap. High leverage with nothing due for five years is survivable; the same leverage with a large maturity next year is urgent."],
+        ["Covenant levels", "A breach can let lenders demand immediate repayment, which is often what starts a restructuring."],
+        ["Industry context", "Thresholds here are general conventions. 5x is routine for a utility and alarming for a cyclical manufacturer."],
+        ["EBITDA quality", "Reported figures may include generous add-backs, and every ratio rests on that denominator."],
+        ["Undrawn credit facilities", "Often the difference between a problem and a crisis."],
+        ["Cyclical vs structural decline", "The judgement that matters most, which no ratio answers."],
+        ["Captive finance arms", "A manufacturer that lends customers money carries that loan book's funding as debt, while its interest income sits outside EBITDA. Readings above 15x are flagged for this reason."],
+        ["Intra-year deterioration", "Annual data only. A company can weaken quickly inside a fiscal year."]
+      ].map(function (p) {
+        return '<dl class="term"><dt>' + esc(p[0]) + "</dt><dd>" + esc(p[1]) +
+          "</dd></dl>";
+      }).join("") + "</div>";
+
+    return html + "</section>";
+  }
+
+  /* ---------- wiring ---------- */
+
+  var current = null;
+
+  function show(ticker) {
+    var co = BY_TICKER[ticker];
+    if (!co) return false;
+    current = co;
+
+    document.getElementById("report").innerHTML =
+      renderOverview(co) + renderRating(co) + renderMetrics(co) +
+      renderPeers(co) + renderNarrative(co) + renderTrends(co) +
+      renderSignals(co) +
+      renderStressTest(co) + renderWatch(co) + renderGlossary() +
+      renderLimits(co);
+
+    paintScenario(co, 20);
+
+    var slider = document.getElementById("haircut");
+    var label = document.getElementById("haircut-val");
+    slider.addEventListener("input", function () {
+      label.textContent = slider.value + "%";
+      paintScenario(co, Number(slider.value));
+    });
+
+    document.getElementById("footer-source").textContent =
+      "Showing " + co.companyName + " (" + co.ticker + "). Source: " +
+      co.source + ". Analyzed " + DATA.generated + ".";
+
+    Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (c) {
+      c.setAttribute("aria-pressed", String(c.dataset.ticker === ticker));
+    });
+    document.getElementById("ticker").value = ticker;
+    return true;
+  }
+
+  /* Expand/collapse for the signal rows. Delegated so it survives re-render. */
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest("[data-toggle]") : null;
+    if (!btn) return;
+    var body = document.getElementById(btn.dataset.toggle);
+    if (!body) return;
+    var open = btn.getAttribute("aria-expanded") === "true";
+    btn.setAttribute("aria-expanded", String(!open));
+    body.hidden = open;
+  });
+
+  /* Company picker, grouped by sector and coloured by rating band.
+     With nearly forty companies a flat row of chips is unreadable, and the
+     grouping doubles as the first lesson of the page: credit profiles cluster
+     by industry. */
+  var picker = document.getElementById("picker");
+  var bySector = {};
+  DATA.companies.forEach(function (c) {
+    var key = c.isSynthetic ? "Teaching examples" : (c.sector || "Other");
+    (bySector[key] = bySector[key] || []).push(c);
+  });
+
+  Object.keys(bySector).sort(function (a, b) {
+    /* Synthetic examples last; otherwise biggest groups first. */
+    if (a === "Teaching examples") return 1;
+    if (b === "Teaching examples") return -1;
+    return bySector[b].length - bySector[a].length;
+  }).forEach(function (sector) {
+    var group = document.createElement("div");
+    group.className = "sector-group";
+
+    var label = document.createElement("span");
+    label.className = "sector-label";
+    label.textContent = sector;
+    group.appendChild(label);
+
+    var row = document.createElement("div");
+    row.className = "chips";
+
+    bySector[sector].sort(function (a, b) {
+      return a.ticker < b.ticker ? -1 : 1;
+    }).forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.dataset.ticker = c.ticker;
+      b.setAttribute("aria-pressed", "false");
+      b.innerHTML = '<span class="dot" style="background:var(--' +
+        bandClass(c.rating.label) + ')"></span>' + esc(c.ticker);
+      b.title = c.shortName + " \u2014 " + c.rating.label;
+      b.addEventListener("click", function () {
+        hideNotice();
+        show(c.ticker);
+        document.getElementById("report").scrollIntoView({
+          behavior: "smooth", block: "start" });
+      });
+      row.appendChild(b);
+    });
+
+    group.appendChild(row);
+    picker.appendChild(group);
+  });
+
+  /* Autocomplete on the ticker field, so typing works as well as clicking. */
+  var datalist = document.createElement("datalist");
+  datalist.id = "ticker-list";
+  DATA.companies.forEach(function (c) {
+    var o = document.createElement("option");
+    o.value = c.ticker;
+    o.label = c.shortName;
+    datalist.appendChild(o);
+  });
+  document.body.appendChild(datalist);
+  document.getElementById("ticker").setAttribute("list", "ticker-list");
+
+  function showNotice(msg) {
+    var n = document.getElementById("entry-notice");
+    n.innerHTML = msg;
+    n.hidden = false;
+  }
+  function hideNotice() { document.getElementById("entry-notice").hidden = true; }
+
+  document.getElementById("entry-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var t = document.getElementById("ticker").value.trim().toUpperCase();
+    if (!t) { showNotice("Enter a ticker to analyze."); return; }
+    if (show(t)) {
+      hideNotice();
+      document.getElementById("report").scrollIntoView({ behavior: "smooth",
+        block: "start" });
+    } else {
+      showNotice("<strong>" + esc(t) + "</strong> is not in this hosted set. " +
+        "The companies above were analyzed before publication. To screen any " +
+        "ticker live, run the Streamlit app, which executes the same Python " +
+        "engine against Yahoo Finance on demand.");
+    }
+  });
+
+  document.getElementById("gen-date").textContent = DATA.generated;
+  document.getElementById("co-count").textContent = DATA.companies.length;
+  show("AAL");
+})();
+</script>
