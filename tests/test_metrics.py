@@ -155,6 +155,11 @@ class TestScenario(unittest.TestCase):
         self.assertIsNone(r.stressed_ebitda)
 
 
+def _history_from(rows, ticker="TEST"):
+    """Alias used by the newer test classes."""
+    return _history(rows, ticker)
+
+
 def _history(rows, ticker="TEST"):
     """Build a FinancialHistory from (year, rev, ebitda, cash, debt, int,
     ocf, capex) tuples."""
@@ -789,3 +794,162 @@ class TestEdgarTagCoverage(unittest.TestCase):
             with self.assertRaises(edgar.EdgarError) as caught:
                 edgar.load_edgar_history("XXXX")
         self.assertIn("Yahoo", str(caught.exception))
+
+
+class TestRatingTrajectory(unittest.TestCase):
+    """The rating recomputed as of each past year."""
+
+    def _history(self, rows):
+        return _history_from(rows)
+
+    def test_each_point_sees_only_data_up_to_that_year(self):
+        """The whole claim is that these are point-in-time ratings rather than
+        hindsight. If a point could see later years, trend-based factors would
+        leak information a reader would not have had."""
+        from screener.rating import rating_trajectory
+        h = _history_from(DETERIORATING)
+        points = rating_trajectory(h, M.compute_all_metrics)
+        years = [fy.year for fy in h.sorted_years()]
+        # One point per year except the first, which has no prior to trend from
+        self.assertEqual([p.year for p in points], years[1:])
+
+        # The earliest point must match a rating computed from that slice alone
+        window = h.sorted_years()[:2]
+        shell = _history_from([(fy.year, fy.revenue, fy.ebitda, fy.cash,
+                                fy.total_debt, fy.interest_expense,
+                                fy.operating_cash_flow, fy.capex)
+                               for fy in window])
+        standalone = rate_stress(
+            M.compute_all_metrics(shell),
+            [(fy.year, fy.ebitda) for fy in window])
+        self.assertEqual(points[0].rating, standalone.rating)
+        self.assertEqual(points[0].score, standalone.score)
+
+    def test_deteriorating_company_shows_a_worsening_path(self):
+        from screener.rating import rating_trajectory, trajectory_summary
+        points = rating_trajectory(_history_from(DETERIORATING),
+                                   M.compute_all_metrics)
+        self.assertLess(points[0].ratio, points[-1].ratio)
+        self.assertIn("worsened", trajectory_summary(points))
+
+    def test_worsening_inside_one_band_is_still_reported(self):
+        """A company can go from 69% to 85% of its stress points without
+        changing band. Reporting only the unchanged label would hide that."""
+        from screener.rating import rating_trajectory, trajectory_summary
+        points = rating_trajectory(_history_from(DETERIORATING),
+                                   M.compute_all_metrics)
+        self.assertEqual(points[0].rating, points[-1].rating)
+        summary = trajectory_summary(points)
+        self.assertIn("throughout", summary)
+        self.assertIn("worsened", summary)
+
+    def test_a_band_crossing_is_named_with_its_year(self):
+        """Five years of EXMPL cross from Low into Elevated."""
+        from screener.data_loader import load_history
+        from screener.rating import rating_trajectory, trajectory_summary
+        points = rating_trajectory(load_history("EXMPL", source="local"),
+                                   M.compute_all_metrics)
+        summary = trajectory_summary(points)
+        self.assertIn("deteriorated", summary)
+        self.assertIn("crossed in", summary)
+
+    def test_stable_company_reports_no_change(self):
+        from screener.rating import rating_trajectory, trajectory_summary
+        points = rating_trajectory(_history_from(IMPROVING),
+                                   M.compute_all_metrics)
+        self.assertIn("throughout", trajectory_summary(points))
+
+    def test_single_year_yields_no_trajectory(self):
+        from screener.rating import rating_trajectory, trajectory_summary
+        points = rating_trajectory(_history_from(DETERIORATING[:1]),
+                                   M.compute_all_metrics)
+        self.assertEqual(points, [])
+        self.assertIn("Not enough history", trajectory_summary(points))
+
+
+class TestMaturitySchedule(unittest.TestCase):
+    """The debt maturity ladder: the gap the project's own report named first."""
+
+    def _schedule(self, amounts):
+        from screener.models import MaturityBucket, MaturitySchedule
+        labels = ["Within 1 year", "Year 2", "Year 3", "Year 4", "Year 5",
+                  "After 5 years"]
+        return MaturitySchedule(
+            as_of_year=2025,
+            buckets=[MaturityBucket(label=l, amount=a)
+                     for l, a in zip(labels, amounts)])
+
+    def test_total_sums_only_the_tagged_rungs(self):
+        s = self._schedule([100.0, 200.0, None, 50.0, None, None])
+        self.assertAlmostEqual(s.total, 350.0)
+
+    def test_untagged_rungs_are_not_counted_as_zero(self):
+        """A rung the filing did not tag is unknown, not nil. Counting it as
+        zero would understate the schedule while looking complete."""
+        s = self._schedule([100.0, None, None, None, None, None])
+        self.assertAlmostEqual(s.total, 100.0)
+        self.assertIsNone(s.buckets[1].amount)
+
+    def test_fully_untagged_schedule_has_no_total(self):
+        self.assertIsNone(self._schedule([None] * 6).total)
+
+    def test_nearest_rung_is_exposed_separately(self):
+        """The within-one-year figure is the one that drives the analysis."""
+        s = self._schedule([3641.0, 4455.0, None, None, None, None])
+        self.assertAlmostEqual(s.due_within_one_year, 3641.0)
+
+    def test_non_edgar_sources_carry_no_schedule(self):
+        """Only EDGAR supplies maturities; others must leave it None rather
+        than inventing one."""
+        from screener.data_loader import load_history
+        self.assertIsNone(load_history("EXMPL", source="local").maturities)
+
+
+class TestAppImportsCleanly(unittest.TestCase):
+    """app.py must at least import without error.
+
+    This gap let a NameError reach the browser: LOW_CEILING was used at module
+    level but never imported, and nothing in the suite loaded app.py, so every
+    test passed against a page that crashed on sight.
+    """
+
+    def test_app_module_imports(self):
+        import importlib
+        import app  # noqa: F401
+        importlib.reload(app)
+
+    def test_every_name_app_uses_from_rating_is_importable(self):
+        """Catches the specific failure above: a name used in app.py that
+        rating.py does not actually export."""
+        import ast
+        import screener.rating as rating_module
+        tree = ast.parse(open("app.py", encoding="utf-8").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "screener.rating":
+                for alias in node.names:
+                    self.assertTrue(hasattr(rating_module, alias.name),
+                                    f"rating.py does not export {alias.name}")
+
+
+class TestMarkdownMoneyEscaping(unittest.TestCase):
+    """Streamlit parses prose as Markdown, where a pair of dollar signs
+    delimits LaTeX math. Two currency figures in one sentence turned the text
+    between them into a mangled equation on the live page."""
+
+    def test_money_in_prose_escapes_the_dollar_sign(self):
+        import app
+        from screener.models import FinancialHistory
+        h = FinancialHistory(ticker="X", company_name="X", currency="USD",
+                             units="millions")
+        self.assertEqual(app.md_money(3641.0, h), r"\$3.6bn")
+        self.assertEqual(app.md_money(-680.0, h), r"-\$680m")
+
+    def test_metric_formatting_is_left_unescaped(self):
+        """st.metric does not parse Markdown, so escaping there would print
+        a stray backslash."""
+        import app
+        from screener.models import FinancialHistory
+        h = FinancialHistory(ticker="X", company_name="X", currency="USD",
+                             units="millions")
+        self.assertEqual(app.fmt_money(3641.0, h), "$3.6bn")
+        self.assertNotIn("\\", app.fmt_money(3641.0, h))

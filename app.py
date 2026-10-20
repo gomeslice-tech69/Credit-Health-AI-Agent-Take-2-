@@ -41,7 +41,9 @@ from screener.peers import (PeerCacheUnavailable, compare_to_sector,
 from screener.narrative import (build_narrative, restructuring_watch,
                                 scenario_explanation,
                                 structural_caveats)
-from screener.rating import ELEVATED, INSUFFICIENT, LOW, MODERATE, rate_stress
+from screener.rating import (ELEVATED, INSUFFICIENT, LOW, LOW_CEILING,
+                             MODERATE, MODERATE_CEILING, rate_stress,
+                             rating_trajectory, trajectory_summary)
 from screener.scenario import run_ebitda_downside
 from screener.signals import evaluate_signals
 
@@ -388,6 +390,21 @@ def fmt_money(value: Optional[float], history: FinancialHistory) -> str:
     return f"{sign}{symbol}{magnitude:,.0f}"
 
 
+def md_money(value: Optional[float], history: FinancialHistory) -> str:
+    """fmt_money, escaped for Markdown.
+
+    Streamlit renders st.markdown/warning/success/info text as Markdown, where
+    a pair of dollar signs delimits LaTeX math. Two currency figures in one
+    sentence therefore turn everything between them into mangled italics --
+    "$3.6bn falls due against $1.1bn of cash" became an equation. Escaping the
+    dollar sign prevents it.
+
+    Use this for money inside prose; use fmt_money for st.metric, which does
+    not parse Markdown.
+    """
+    return fmt_money(value, history).replace("$", r"\$")
+
+
 def fmt_pct(value: Optional[float], signed: bool = False) -> str:
     if value is None:
         return "n/a"
@@ -551,6 +568,12 @@ def run_agent_workflow(ticker: str, source: str, years: int,
             else:
                 st.write("Skipped sector comparison — not enough peers")
 
+        trajectory = rating_trajectory(history, compute_all_metrics)
+        if len(trajectory) >= 2:
+            st.write(f"Traced the rating back to "
+                     f"{trajectory[0].year} — {len(trajectory)} point-in-time "
+                     "ratings")
+
         # --- Step 7: summary ----------------------------------------------
         narrative = build_narrative(history, metrics, signals, scenario,
                                     rating)
@@ -561,6 +584,7 @@ def run_agent_workflow(ticker: str, source: str, years: int,
             "rating": rating,
             "narrative": narrative,
             "peers": peers,
+            "trajectory": trajectory,
         }
 
         if use_claude:
@@ -656,6 +680,18 @@ def section_rating(analysis: Dict[str, object]) -> None:
         st.error(f"**{title}**")
         with st.expander("Why, and what an analyst does instead"):
             st.write(explanation)
+
+    points = analysis.get("trajectory") or []
+    if len(points) >= 2:
+        st.markdown("#### How the rating got here")
+        st.caption(
+            "Each point is the rating as it stood at the end of that year, "
+            "computed from a truncated history — the 2023 point sees 2023 and "
+            "nothing after. A genuine point-in-time rating, not hindsight.")
+        st.altair_chart(
+            rating_trajectory_chart(points, analysis["history"]),
+            use_container_width=True)
+        st.caption(trajectory_summary(points))
 
     with st.expander("How this rating is calculated (every threshold)"):
         st.markdown(
@@ -929,6 +965,150 @@ def section_explanation(analysis: Dict[str, object]) -> None:
                    "model-written version.")
 
 
+# ---------------------------------------------------------------------------
+# Distinctive charts
+# ---------------------------------------------------------------------------
+
+# The rating bands, as fractions of the maximum assessable score. These are
+# the same cut-offs rating.py uses; drawing them means the rating logic is
+# visible in the picture rather than asserted in a table elsewhere.
+BAND_BOUNDS = [(0.0, LOW_CEILING, "Low"),
+               (LOW_CEILING, MODERATE_CEILING, "Moderate"),
+               (MODERATE_CEILING, 1.0, "Elevated")]
+
+
+def rating_trajectory_chart(points: List, history: FinancialHistory) -> alt.Chart:
+    """The rating as it stood at the end of each year, over shaded bands.
+
+    A single rating says where a company stands; this says when it got there,
+    which is often the more useful fact. Each point is computed from a
+    truncated history, so it is a genuine point-in-time rating rather than
+    hindsight.
+    """
+    frame = pd.DataFrame([{
+        "Year": str(p.year),
+        "Score": (p.ratio or 0) * 100,
+        "Rating": p.rating.replace(" Stress", ""),
+        "Detail": f"{p.score} of {p.max_score} points",
+    } for p in points])
+
+    bands = pd.DataFrame([
+        {"lo": lo * 100, "hi": hi * 100, "Band": name}
+        for lo, hi, name in BAND_BOUNDS])
+
+    background = (
+        alt.Chart(bands)
+        .mark_rect(opacity=0.14)
+        .encode(
+            y=alt.Y("lo:Q", title="Stress score (% of assessable maximum)",
+                    scale=alt.Scale(domain=[0, 100])),
+            y2="hi:Q",
+            color=alt.Color("Band:N",
+                            scale=alt.Scale(domain=["Low", "Moderate", "Elevated"],
+                                            range=["#1a7f37", "#bf8700", "#b42318"]),
+                            legend=None))
+    )
+    line = (
+        alt.Chart(frame)
+        .mark_line(point=alt.OverlayMarkDef(size=90, filled=True),
+                   strokeWidth=3, color="#16202e", interpolate="monotone")
+        .encode(
+            x=alt.X("Year:N", title="Fiscal year", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("Score:Q", scale=alt.Scale(domain=[0, 100])),
+            tooltip=["Year", "Rating", "Detail",
+                     alt.Tooltip("Score:Q", format=".0f", title="Score %")])
+    )
+    return (background + line).properties(height=250)
+
+
+def leverage_band_chart(frame: pd.DataFrame) -> alt.Chart:
+    """Leverage over the conventional credit bands.
+
+    The bands are the same thresholds the rating scores against, so the line
+    crossing into red is the rating logic made visible.
+    """
+    usable = frame[["Year", "Net Debt / EBITDA"]].dropna()
+    if usable.empty:
+        return None
+    top = max(float(usable["Net Debt / EBITDA"].max()) * 1.15, 7.0)
+
+    bands = pd.DataFrame([
+        {"lo": 0, "hi": 2, "Band": "Conservative"},
+        {"lo": 2, "hi": 4, "Band": "Normal"},
+        {"lo": 4, "hi": 6, "Band": "Leveraged"},
+        {"lo": 6, "hi": top, "Band": "Stressed"},
+    ])
+    background = (
+        alt.Chart(bands).mark_rect(opacity=0.16).encode(
+            y=alt.Y("lo:Q", title="Net Debt / EBITDA (x)",
+                    scale=alt.Scale(domain=[0, top])),
+            y2="hi:Q",
+            color=alt.Color(
+                "Band:N",
+                scale=alt.Scale(
+                    domain=["Conservative", "Normal", "Leveraged", "Stressed"],
+                    range=["#1a7f37", "#7aa63f", "#e8a33d", "#b42318"]),
+                legend=alt.Legend(title=None, orient="bottom")))
+    )
+    line = (
+        alt.Chart(usable)
+        .mark_line(point=alt.OverlayMarkDef(size=70, filled=True),
+                   strokeWidth=3, color="#16202e")
+        .encode(x=alt.X("Year:N", title="Year", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Net Debt / EBITDA:Q", scale=alt.Scale(domain=[0, top])),
+                tooltip=["Year",
+                         alt.Tooltip("Net Debt / EBITDA:Q", format=".2f")])
+    )
+    return (background + line).properties(height=260)
+
+
+def maturity_wall_chart(schedule, cash: Optional[float],
+                        history: FinancialHistory) -> alt.Chart:
+    """Debt coming due by year, with cash drawn across it.
+
+    The standard credit picture, and the one thing leverage cannot show: a
+    company fails when it misses a payment on a date. The cash line is what
+    makes the near bars meaningful -- a tall first bar above the line is the
+    shape that starts a refinancing conversation.
+    """
+    rows = [{"Bucket": b.label, "Amount": b.amount, "Order": i}
+            for i, b in enumerate(schedule.buckets) if b.amount is not None]
+    if not rows:
+        return None
+    frame = pd.DataFrame(rows)
+
+    # The nearest rung is the one that matters most, so it is coloured apart.
+    frame["Near"] = ["Due within 1 year" if r["Order"] == 0 else "Later"
+                     for r in rows]
+
+    bars = (
+        alt.Chart(frame)
+        .mark_bar()
+        .encode(
+            x=alt.X("Bucket:N", sort=alt.EncodingSortField("Order"),
+                    title=None, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("Amount:Q",
+                    title=f"{history.currency} {history.units}"),
+            color=alt.Color(
+                "Near:N",
+                scale=alt.Scale(domain=["Due within 1 year", "Later"],
+                                range=["#b42318", "#2a5d8f"]),
+                legend=alt.Legend(title=None, orient="bottom")),
+            tooltip=["Bucket", alt.Tooltip("Amount:Q", format=",.0f")])
+    )
+    layers = [bars]
+    if cash is not None:
+        cash_line = (
+            alt.Chart(pd.DataFrame([{"Cash": cash}]))
+            .mark_rule(strokeDash=[6, 4], strokeWidth=2, color="#1a7f37")
+            .encode(y="Cash:Q",
+                    tooltip=[alt.Tooltip("Cash:Q", format=",.0f",
+                                         title="Cash on hand")])
+        )
+        layers.append(cash_line)
+    return alt.layer(*layers).properties(height=260)
+
+
 def trend_line_chart(frame: pd.DataFrame, columns: List[str],
                      colors: List[str], y_title: str) -> alt.Chart:
     """A multi-series line chart over fiscal years.
@@ -990,10 +1170,26 @@ def section_trends(analysis: Dict[str, object]) -> None:
 
     st.markdown("**Leverage** — higher is worse")
     if frame["Net Debt / EBITDA"].notna().any():
-        st.altair_chart(
-            trend_line_chart(frame, ["Net Debt / EBITDA", "Debt / EBITDA"],
-                             ["#b42318", "#e8a33d"], "Multiple (x)"),
-            use_container_width=True)
+        banded = leverage_band_chart(frame)
+        if banded is not None:
+            st.altair_chart(banded, use_container_width=True)
+            note = ("The shaded bands are the same thresholds the rating "
+                    "scores against, so the line crossing into red is the "
+                    "rating logic made visible rather than described.")
+            # One extreme year compresses every band below it. The axis is
+            # left honest and the reason is stated, rather than clipping the
+            # outlier out of sight.
+            peak = frame["Net Debt / EBITDA"].max()
+            if pd.notna(peak) and peak > 15:
+                note += (f" The axis reaches {peak:.0f}x because of a single "
+                         "extreme year, which compresses the lower bands.")
+            st.caption(note)
+        with st.expander("Show gross Debt/EBITDA alongside net"):
+            st.altair_chart(
+                trend_line_chart(frame,
+                                 ["Net Debt / EBITDA", "Debt / EBITDA"],
+                                 ["#b42318", "#e8a33d"], "Multiple (x)"),
+                use_container_width=True)
     else:
         st.info("Leverage could not be charted: net debt or EBITDA "
                 "unavailable for every year.")
@@ -1183,6 +1379,70 @@ def section_scenario(analysis: Dict[str, object]) -> None:
     # The explanation is regenerated for the current slider value, so the prose
     # always matches the numbers on screen.
     st.info(scenario_explanation(result))
+
+
+def section_maturities(analysis: Dict[str, object]) -> None:
+    """When the debt actually comes due.
+
+    This answers what leverage structurally cannot. Companies fail on a date,
+    not at a threshold, and until now the tool was blind to timing entirely --
+    the limitation its own report named first.
+    """
+    history = analysis["history"]
+    schedule = history.maturities
+    years = history.sorted_years()
+    cash = years[-1].cash if years else None
+
+    st.markdown("### Debt maturity wall")
+
+    if schedule is None:
+        st.info(
+            "No maturity schedule is available for this company. The figures "
+            "come from the long-term debt note of the 10-K, which only the "
+            "**SEC EDGAR** source provides — switch the data source in the "
+            "sidebar to see it. Some filers also leave the schedule untagged.")
+        return
+
+    st.caption(
+        f"Principal repayments due by year, as reported in the "
+        f"{schedule.as_of_year} filing. The dashed line is cash on hand. A "
+        "company fails when it misses a payment on a date, not when a ratio "
+        "crosses a threshold — which is what this shows and leverage cannot.")
+
+    chart = maturity_wall_chart(schedule, cash, history)
+    if chart is not None:
+        st.altair_chart(chart, use_container_width=True)
+
+    near = schedule.due_within_one_year
+    cols = st.columns(3)
+    with cols[0]:
+        st.metric("Due within 1 year", fmt_money(near, history))
+    with cols[1]:
+        st.metric("Cash on hand", fmt_money(cash, history))
+    with cols[2]:
+        st.metric("Total scheduled", fmt_money(schedule.total, history))
+
+    # The comparison that matters, stated rather than left to the reader.
+    if near is not None and cash is not None:
+        if near > cash:
+            st.warning(
+                f"**{md_money(near, history)} falls due within twelve months "
+                f"against {md_money(cash, history)} of cash.** The shortfall "
+                "has to come from operating cash flow, asset sales, or "
+                "refinancing. Whether refinancing is available, and at what "
+                "cost, is the question this raises.")
+        else:
+            st.success(
+                f"**{md_money(near, history)} falls due within twelve months, "
+                f"covered by {md_money(cash, history)} of cash.** The nearest "
+                "maturity does not depend on refinancing.")
+
+    missing = [b.label for b in schedule.buckets if b.amount is None]
+    if missing:
+        st.caption(
+            "Not tagged in the filing: " + ", ".join(missing) +
+            ". Those rungs are left out rather than shown as zero, so the "
+            "total above understates the full schedule.")
 
 
 def section_restructuring_watch(analysis: Dict[str, object]) -> None:
@@ -1463,6 +1723,8 @@ def main() -> None:
     section_signals(analysis)
     st.markdown("---")
     section_scenario(analysis)
+    st.markdown("---")
+    section_maturities(analysis)
     st.markdown("---")
     section_restructuring_watch(analysis)
     st.markdown("---")

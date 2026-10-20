@@ -323,3 +323,105 @@ def rate_stress(all_metrics: List[YearMetrics],
                f"{assessed} of 5 factors assessed."
 
     return StressRating(rating, score, max_score, ratio, factors, note)
+
+
+# ---------------------------------------------------------------------------
+# Rating trajectory
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RatingPoint:
+    """The rating as it would have stood at the end of one fiscal year."""
+
+    year: int
+    rating: str
+    score: int
+    max_score: int
+    ratio: Optional[float]
+    assessed: int
+
+
+def rating_trajectory(history, compute_metrics) -> List[RatingPoint]:
+    """Recompute the rating as of each year, using only data available then.
+
+    WHY THIS IS WORTH HAVING
+
+    A single rating tells you where a company stands. It does not tell you
+    when it got there, and the turning point is often the more useful fact --
+    a company that has been Elevated for five years is a different situation
+    from one that crossed last year.
+
+    WHY IT IS HONEST
+
+    Each point is computed from a TRUNCATED history: the rating for 2023 sees
+    2021 to 2023 and nothing after. It is a genuine point-in-time rating, not
+    hindsight applied backwards. That matters because several factors are
+    trend-based, and letting them see future years would quietly leak
+    information a reader would not have had.
+
+    `compute_metrics` is passed in rather than imported to keep this module
+    free of a circular dependency on metrics.py.
+    """
+    years = history.sorted_years()
+    points: List[RatingPoint] = []
+
+    # Two years is the minimum any trend factor can work with.
+    for cut in range(2, len(years) + 1):
+        window = years[:cut]
+        shell = type(history)(
+            ticker=history.ticker,
+            company_name=history.company_name,
+            years=list(window),
+            currency=history.currency,
+            units=history.units,
+        )
+        metrics = compute_metrics(shell)
+        result = rate_stress(metrics, [(fy.year, fy.ebitda) for fy in window])
+        points.append(RatingPoint(
+            year=window[-1].year,
+            rating=result.rating,
+            score=result.score,
+            max_score=result.max_score,
+            ratio=result.ratio,
+            assessed=result.assessed_count,
+        ))
+    return points
+
+
+def trajectory_summary(points: List[RatingPoint]) -> str:
+    """One sentence describing the path, naming any crossing."""
+    if len(points) < 2:
+        return "Not enough history to show how the rating has moved."
+
+    first, last = points[0], points[-1]
+
+    if first.rating == last.rating:
+        # The band can stay the same while the score moves a long way inside
+        # it. Reporting only the unchanged label would hide real
+        # deterioration -- a company going from 69% to 85% of its stress
+        # points has got materially worse without crossing a threshold.
+        base = (f"The rating has been {last.rating.lower()} throughout the "
+                f"period, from {first.year} to {last.year}")
+        if first.ratio is not None and last.ratio is not None:
+            shift = last.ratio - first.ratio
+            if abs(shift) >= 0.10:
+                direction = "worsened" if shift > 0 else "improved"
+                return (base + f", though the underlying score has {direction} "
+                        f"from {first.ratio:.0%} to {last.ratio:.0%} of the "
+                        "assessable maximum.")
+        return base + "."
+
+    order = [LOW, MODERATE, ELEVATED]
+    try:
+        worsened = order.index(last.rating) > order.index(first.rating)
+    except ValueError:
+        worsened = False
+
+    # The year it last changed is the turning point worth naming.
+    crossing = next((points[i] for i in range(len(points) - 1, 0, -1)
+                     if points[i].rating != points[i - 1].rating), None)
+    when = f" It crossed in {crossing.year}." if crossing else ""
+
+    direction = "deteriorated" if worsened else "improved"
+    return (f"The rating has {direction} from {first.rating.lower()} in "
+            f"{first.year} to {last.rating.lower()} in {last.year}.{when}")

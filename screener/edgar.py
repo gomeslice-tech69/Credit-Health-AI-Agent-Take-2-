@@ -43,7 +43,8 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
 
-from .models import FinancialHistory, FiscalYear
+from .models import (FinancialHistory, FiscalYear, MaturityBucket,
+                     MaturitySchedule)
 
 TICKER_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
@@ -146,6 +147,36 @@ CURRENT_DEBT_TAGS = [
     "LongTermDebtAndCapitalLeaseObligationsCurrent",
     "LongTermDebtCurrent",
     "DebtCurrent",
+]
+
+# The maturity ladder, near to far. Filers tag each rung separately, and the
+# capital-lease variants are merged in because finance leases are debt for
+# credit purposes. A rung nobody tagged stays None rather than becoming zero.
+MATURITY_BUCKETS = [
+    ("Within 1 year", [
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths",
+        "LongTermDebtAndCapitalLeaseObligationsMaturitiesRepaymentsOfPrincipalInNextTwelveMonths",
+    ]),
+    ("Year 2", [
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo",
+        "LongTermDebtAndCapitalLeaseObligationsMaturitiesRepaymentsOfPrincipalInYearTwo",
+    ]),
+    ("Year 3", [
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree",
+        "LongTermDebtAndCapitalLeaseObligationsMaturitiesRepaymentsOfPrincipalInYearThree",
+    ]),
+    ("Year 4", [
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour",
+        "LongTermDebtAndCapitalLeaseObligationsMaturitiesRepaymentsOfPrincipalInYearFour",
+    ]),
+    ("Year 5", [
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive",
+        "LongTermDebtAndCapitalLeaseObligationsMaturitiesRepaymentsOfPrincipalInYearFive",
+    ]),
+    ("After 5 years", [
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive",
+        "LongTermDebtAndCapitalLeaseObligationsMaturitiesRepaymentsOfPrincipalAfterYearFive",
+    ]),
 ]
 
 # A reported period counts as a full year within this many days. Fiscal years
@@ -362,6 +393,34 @@ def _sum_series(a: Dict[str, float], b: Dict[str, float]) -> Dict[str, float]:
 # The loader
 # ---------------------------------------------------------------------------
 
+def _maturity_schedule(gaap: Dict[str, Any], as_of: str,
+                       scale: float) -> Optional[MaturitySchedule]:
+    """Read the debt maturity ladder as of one balance-sheet date.
+
+    Returns None when the filing tags no rungs at all, which is common for
+    companies whose debt is immaterial. A partially tagged ladder is returned
+    with the untagged rungs left None -- showing four of six rungs is useful,
+    and silently calling the other two zero would not be.
+    """
+    buckets: List[MaturityBucket] = []
+    used: List[str] = []
+
+    for label, tags in MATURITY_BUCKETS:
+        amount = None
+        for tag in tags:
+            series, got = _annual_series(gaap, [tag], instant=True)
+            if as_of in series:
+                amount = series[as_of] / scale
+                used.extend(got)
+                break
+        buckets.append(MaturityBucket(label=label, amount=amount))
+
+    if all(b.amount is None for b in buckets):
+        return None
+    return MaturitySchedule(as_of_year=int(as_of[:4]), buckets=buckets,
+                            tags_used=sorted(set(used)))
+
+
 def load_edgar_history(ticker: str, max_years: int = 5) -> FinancialHistory:
     """Build a FinancialHistory from the company's SEC filings.
 
@@ -489,6 +548,14 @@ def load_edgar_history(ticker: str, max_years: int = 5) -> FinancialHistory:
             operating_income=at(operating_income, end),
         ))
 
+    maturities = _maturity_schedule(gaap, periods[-1], scale)
+    if maturities is not None:
+        notes["maturities"] = (
+            "The debt maturity schedule comes from the long-term debt note of "
+            "the 10-K. It is reported once, as of the latest balance-sheet "
+            "date, and answers the question leverage cannot: when the debt "
+            "actually comes due.")
+
     return FinancialHistory(
         ticker=ticker.upper(),
         company_name=str(facts.get("entityName") or registered_name),
@@ -507,5 +574,6 @@ def load_edgar_history(ticker: str, max_years: int = 5) -> FinancialHistory:
             f"{cik:010d}. These are figures as filed with the SEC, taken from "
             "the company's own 10-K filings. Where a period was restated in a "
             "later filing, the most recently filed value is used."),
+        maturities=maturities,
         notes=notes,
     )

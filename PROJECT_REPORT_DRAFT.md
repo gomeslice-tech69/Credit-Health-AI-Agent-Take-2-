@@ -481,14 +481,42 @@ concept for them. A test enforces this.
 A second test asserts that `rating.py` never imports the Z-score. If the main
 rating consulted it, "two independent methods agree" would be circular.
 
+## 9d. Three visuals that carry analysis rather than decorate
+
+**The rating trajectory.** The rating recomputed as of every past year, drawn
+over the same bands it scores against. A single rating says where a company
+stands; this says *when it got there*, which is often the more useful fact.
+Each point uses a truncated history — the 2023 point sees 2023 and nothing
+after — so it is a genuine point-in-time rating rather than hindsight applied
+backwards. EXMPL walks visibly from low stress in 2022 into elevated in 2024.
+
+**Threshold bands on the leverage chart.** The background is shaded into the
+conventional credit bands (under 2x, 2–4x, 4–6x, above 6x). The line crossing
+into red *is* the rating logic, shown rather than described, so a reader
+understands the verdict without being walked through a table.
+
+**The debt maturity wall.** Principal due by year, with cash drawn across it
+as a dashed line. This answers the question Section 10 names first and
+leverage structurally cannot: companies fail when they miss a payment on a
+date, not when a ratio crosses a threshold.
+
+For American Airlines the picture is immediate: **3.6bn falls due within
+twelve months against 1.1bn of cash.** The shortfall must come from operating
+cash flow, asset sales or refinancing — and *whether refinancing is available,
+and at what cost* is now a question the tool raises with numbers attached
+rather than as generic advice.
+
+Maturities come only from SEC EDGAR, since they live in the long-term debt
+note of the 10-K. Rungs a filer did not tag are left out rather than shown as
+zero, and the interface says which.
+
 ## 10. Limitations
 
 Knowing what the tool cannot do is most of understanding it.
 
-1. **No debt maturity dates.** The most important gap. High leverage with
-   nothing due for five years is survivable; the same leverage with a large
-   maturity next year is urgent. A company fails when it misses a payment on a
-   date, not when a ratio crosses a threshold.
+1. **Debt maturities are available only from SEC EDGAR**, and only where the
+   filer tagged them. On the Yahoo source the tool remains blind to timing.
+   This was the project's largest gap and is now partly closed (Section 9d).
 2. **No covenant information.** A breach can allow lenders to demand immediate
    repayment, which is frequently what actually starts a restructuring.
 3. **Industry context is broad.** Peer comparison groups by sector rather

@@ -105,6 +105,42 @@ class FiscalYear:
 
 
 @dataclass
+class MaturitySchedule:
+    """When the debt actually comes due, as of one balance-sheet date.
+
+    This answers the question leverage cannot: a company fails when it misses
+    a payment on a date, not when a ratio crosses a threshold. High leverage
+    with nothing due for five years is survivable; the same leverage with a
+    large maturity next year is urgent.
+
+    Only SEC EDGAR supplies this -- the figures come from the long-term debt
+    note of the 10-K. `buckets` is ordered near to far, and any bucket the
+    filing did not tag is None rather than zero.
+    """
+
+    as_of_year: int
+    buckets: List["MaturityBucket"] = field(default_factory=list)
+    tags_used: List[str] = field(default_factory=list)
+
+    @property
+    def total(self) -> Optional[float]:
+        known = [b.amount for b in self.buckets if b.amount is not None]
+        return sum(known) if known else None
+
+    @property
+    def due_within_one_year(self) -> Optional[float]:
+        return self.buckets[0].amount if self.buckets else None
+
+
+@dataclass
+class MaturityBucket:
+    """One rung of the maturity ladder."""
+
+    label: str
+    amount: Optional[float]
+
+
+@dataclass
 class FinancialHistory:
     """Several years of data for one company, newest-last.
 
@@ -126,6 +162,9 @@ class FinancialHistory:
     # will need it to group companies, and because "5x leverage" means
     # different things for an airline and a software company.
     provenance: str = ""
+    maturities: Optional["MaturitySchedule"] = None
+    # When the debt comes due. Only EDGAR provides this; other sources leave
+    # it None and the interface says so rather than inventing a schedule.
     notes: Dict[str, str] = field(default_factory=dict)
     # notes maps a field name -> explanation, e.g.
     #   {"ebitda": "Not reported directly; computed as Operating Income + D&A"}
