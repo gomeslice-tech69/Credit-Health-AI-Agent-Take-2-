@@ -685,10 +685,8 @@ def section_rating(analysis: Dict[str, object]) -> None:
     points = analysis.get("trajectory") or []
     if len(points) >= 2:
         st.markdown("#### How the rating got here")
-        st.caption(
-            "Each point is the rating as it stood at the end of that year, "
-            "computed from a truncated history — the 2023 point sees 2023 and "
-            "nothing after. A genuine point-in-time rating, not hindsight.")
+        st.caption("The rating as it stood each year. No hindsight: the "
+                   "2023 point sees nothing after 2023.")
         st.altair_chart(
             rating_trajectory_chart(points, analysis["history"]),
             use_container_width=True)
@@ -735,11 +733,8 @@ def section_altman(analysis: Dict[str, object]) -> None:
 
     z = compute_z_score(years[-1])
     st.caption(
-        "Our rating measures **debt service** — can this company keep paying "
-        "what it owes? The Z-score measures the **balance sheet** — has it "
-        "accumulated enough value to absorb losses? Published by Edward "
-        "Altman in 1968 and taught ever since, so it is an outside check "
-        "rather than a calculation of this project's own.")
+        "Our rating asks whether the company can keep paying. Altman's asks "
+        "whether the balance sheet can absorb losses. Published 1968.")
 
     if not z.available:
         st.info(z.reason)
@@ -876,10 +871,8 @@ def section_peers(analysis: Dict[str, object]) -> None:
     history = analysis["history"]
 
     st.markdown("### Industry comparison")
-    st.caption(
-        "Every threshold in the rating is a general convention. The same "
-        "leverage means different things in different industries, so these "
-        "figures compare the company against the median of its sector.")
+    st.caption("5x leverage is normal for a utility and alarming for a "
+               "miner. Here is how this company sits against its sector.")
 
     if not peers.get("available"):
         st.info(peers.get("reason") or "No sector comparison is available.")
@@ -1156,9 +1149,7 @@ def section_trends(analysis: Dict[str, object]) -> None:
     history = analysis["history"]
     metrics: List[YearMetrics] = analysis["metrics"]
     st.markdown("### Historical trends")
-    st.caption("Three to five years is enough to see a direction of travel. "
-               "The direction usually matters more than any single year's "
-               "level.")
+    st.caption("Direction matters more than any single year.")
 
     # Year as a string so the axis reads "2024", not "2,024".
     frame = pd.DataFrame({
@@ -1291,10 +1282,9 @@ def section_signals(analysis: Dict[str, object]) -> None:
     unknown = [s for s in signals if s.status == "unknown"]
 
     st.markdown("### Key credit signals")
-    st.caption(f"{len(fired)} of {len(signals)} signals triggered. No single "
-               "signal means a company is in trouble — each has an innocent "
-               "explanation as well as a worrying one. What matters is how "
-               "many fire together and whether they tell one coherent story.")
+    st.caption(f"{len(fired)} of {len(signals)} triggered. One signal is a "
+               "question, not an answer. Look for several pointing the same "
+               "way.")
 
     for group, heading in ((fired, None), (clear, "Not a current concern"),
                            (unknown, "Could not assess")):
@@ -1331,9 +1321,7 @@ def section_scenario(analysis: Dict[str, object]) -> None:
     latest, prior = years[-1], years[-2] if len(years) >= 2 else None
 
     st.markdown("### Downside stress test")
-    st.caption("What happens if EBITDA falls? Debt, cash and interest expense "
-               "are held constant, so the single effect of lower earnings is "
-               "visible on its own.")
+    st.caption("Debt, cash and interest held constant. Only earnings move.")
 
     pct = st.slider("EBITDA decline", min_value=0, max_value=50, value=20,
                     step=5, format="%d%%",
@@ -1405,10 +1393,8 @@ def section_maturities(analysis: Dict[str, object]) -> None:
         return
 
     st.caption(
-        f"Principal repayments due by year, as reported in the "
-        f"{schedule.as_of_year} filing. The dashed line is cash on hand. A "
-        "company fails when it misses a payment on a date, not when a ratio "
-        "crosses a threshold — which is what this shows and leverage cannot.")
+        f"Principal due by year, from the {schedule.as_of_year} filing. "
+        "Dashed line is cash on hand.")
 
     chart = maturity_wall_chart(schedule, cash, history)
     if chart is not None:
@@ -1562,15 +1548,21 @@ def render_market_scan() -> None:
     companies = data["companies"]
     st.markdown("### Market scan")
     st.caption(
-        f"All {len(companies)} benchmark companies screened against the same "
-        "thresholds and ranked worst-first. This is the part a single "
-        "conversation cannot replicate: thirty-six companies measured with one "
-        "ruler, so the ordering carries meaning. Snapshot taken "
-        f"{data['generated']}.")
+        f"{len(companies)} companies, same thresholds, ranked worst first. "
+        f"Snapshot {data['generated']}.")
 
     counts = {}
     for row in companies:
         counts[row["rating"]] = counts.get(row["rating"], 0) + 1
+
+    worst = companies[0] if companies else None
+    elevated = counts.get(ELEVATED, 0)
+    if worst:
+        st.info(
+            f"**{elevated} of {len(companies)} companies screen Elevated.** "
+            f"Most stressed: **{worst['name']}** ({worst['ticker']}) at "
+            f"{(worst['ratio'] or 0):.0%}.")
+
     cols = st.columns(4)
     with cols[0]:
         st.metric("Companies screened", len(companies))
@@ -1650,10 +1642,8 @@ def render_market_scan() -> None:
     medians = data.get("sectorMedians") or {}
     if medians and not chosen:
         st.markdown("#### Stress by sector")
-        st.caption(
-            "Median stress score within each sector. Sectors with fewer than "
-            "three companies in the set are left out, since a median built "
-            "from two is an anecdote.")
+        st.caption("Median stress by sector. Sectors with under three "
+                   "companies are excluded.")
         sector_frame = pd.DataFrame(
             [{"Sector": k, "Median stress": v * 100}
              for k, v in sorted(medians.items(), key=lambda kv: -kv[1])])
@@ -1669,9 +1659,8 @@ def render_market_scan() -> None:
             use_container_width=True)
 
     st.caption(
-        "Rebuild this snapshot with `python3 build_market_scan.py`. Every "
-        "figure was computed by the same engine that screens a single "
-        "company, so a company's rank here matches what the screener reports.")
+        "Same engine as the single-company screen. Rebuild with "
+        "`python3 build_market_scan.py`.")
 
 
 def render_methodology() -> None:
@@ -1683,10 +1672,8 @@ def render_methodology() -> None:
     the thresholds and asking to be believed.
     """
     st.markdown("### How the rating works")
-    st.caption(
-        "Five factors, each scored against a fixed threshold. Points are "
-        "summed and divided by the maximum that could actually be assessed, "
-        "so a company with patchy disclosure is not flattered by the gaps.")
+    st.caption("Five factors, fixed thresholds. Points divided by the "
+               "maximum assessable, so gaps do not flatter.")
 
     # Short values: st.metric truncates anything wider than its column, and
     # "Moderate s..." is worse than no label at all.
@@ -1699,9 +1686,7 @@ def render_methodology() -> None:
         st.metric("Above 60%", "Elevated")
 
     st.markdown("#### Set each factor yourself")
-    st.caption(
-        "Change any factor and watch the score move. This runs the same "
-        "scoring code the screener uses.")
+    st.caption("Same scoring code the screener uses.")
 
     specs = [
         ("Leverage level", "lev", 3,
@@ -1780,10 +1765,8 @@ def render_methodology() -> None:
             "whether a company deserves a closer look.")
 
     st.markdown("#### The pipeline")
-    st.caption(
-        "Python performs every calculation and decides the rating. The "
-        "explanation layer describes the result; it never touches a number. "
-        "That is why the same ticker produces identical output on every run.")
+    st.caption("Python calculates and decides. The explanation layer only "
+               "describes. Same ticker, same output, every run.")
     st.markdown(
         '<div class="pipeline">Ticker → Financial data → Credit metrics → '
         'Signal detection → Stress test → Peer comparison → Rating → '
@@ -1918,10 +1901,8 @@ def render_briefing() -> None:
 
     for err in data.errors:
         st.caption(err)
-    st.caption(
-        f"Built {data.generated} from SEC full-text search and public RSS "
-        "feeds. Every figure above is a count of real filings or headlines — "
-        "nothing here is generated prose.")
+    st.caption(f"Built {data.generated}. Every figure is a count of real "
+               "filings or headlines.")
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -1941,10 +1922,8 @@ def render_press() -> None:
     covers rumour, negotiation and sector pressure weeks before any of it
     reaches a filing -- and covers private credit, which barely files at all.
     """
-    st.caption(
-        "Headlines from publishers' public RSS feeds, filtered to credit and "
-        "restructuring. Clicking through opens the publisher's site, where "
-        "your own subscription applies — nothing here bypasses a paywall.")
+    st.caption("Public RSS, filtered to credit and restructuring. Links open "
+               "the publisher's site.")
 
     controls = st.columns([1, 1, 2])
     with controls[0]:
@@ -2002,11 +1981,8 @@ def render_news() -> None:
     """
     st.markdown("### Industry watch")
     st.caption(
-        "**Briefing** counts what is happening and says what the numbers add "
-        "up to. **Filings** are the individual events companies have "
-        "disclosed to the SEC. **Press** is what is being written, which "
-        "covers negotiation and sector pressure weeks before any of it "
-        "reaches a filing.")
+        "**Briefing** — the numbers. **Filings** — individual SEC events. "
+        "**Press** — what reporters are covering.")
 
     brief_tab, filings_tab, press_tab = st.tabs(
         ["Briefing", "SEC filings", "Press coverage"])
@@ -2027,11 +2003,8 @@ def render_filings() -> None:
             "`SEC_USER_AGENT` to enable it — see the sidebar.")
         return
 
-    st.caption(
-        "Live restructuring activity, taken from SEC filings rather than news "
-        "coverage. These are events as companies formally disclose them: "
-        "petitions, creditor agreements, auditor warnings. Every item links "
-        "to the filing itself.")
+    st.caption("Restructuring events as companies file them. Every row "
+               "links to the filing.")
 
     controls = st.columns([1, 1, 2])
     with controls[0]:
@@ -2094,10 +2067,7 @@ def render_filings() -> None:
                        + ", ".join(f"`{t}`" for t in screenable[:10]))
         st.markdown("")
 
-    st.caption(
-        "Source: SEC EDGAR full-text search, covering every filing by every "
-        "US public company. Refreshed hourly. This is formal disclosure, not "
-        "journalism — it reports what has been filed, not what is rumoured.")
+    st.caption("Source: SEC EDGAR full-text search. Refreshed hourly.")
 
 
 # ---------------------------------------------------------------------------
@@ -2316,6 +2286,36 @@ def render_company(analysis: Dict[str, object]) -> None:
     """
     section_header(analysis["history"], analysis["metrics"])
 
+    # The answer, in one line, before any chart. A reader should be able to
+    # leave after this sentence and still know what the tool concluded.
+    rating = analysis["rating"]
+    metrics = analysis["metrics"]
+    latest = metrics[-1]
+    peers = analysis.get("peers") or {}
+
+    bits = []
+    if latest.net_debt_to_ebitda is not None:
+        bits.append(f"{latest.net_debt_to_ebitda:.1f}x leverage")
+    if latest.interest_coverage is not None:
+        bits.append(f"{latest.interest_coverage:.1f}x coverage")
+    if latest.free_cash_flow is not None:
+        bits.append(("positive" if latest.free_cash_flow >= 0 else "negative")
+                    + " free cash flow")
+    headline = " · ".join(bits) if bits else "limited data"
+
+    peer_note = ""
+    if peers.get("available"):
+        lev = next((m for m in peers["metrics"]
+                    if m["key"] == "net_debt_to_ebitda"), None)
+        if lev and lev["percentile"] is not None:
+            peer_note = (f" That is the {lev['percentile']:.0f}th percentile "
+                         f"of its sector.")
+
+    band = {LOW: "success", MODERATE: "warning",
+            ELEVATED: "error"}.get(rating.rating, "info")
+    message = (f"**{rating.rating}** — {headline}.{peer_note}")
+    getattr(st, band)(message)
+
     verdict, trends, risk, next_steps = st.tabs(
         ["Verdict", "Trends", "Risk", "What next"])
 
@@ -2359,8 +2359,8 @@ def render_about() -> None:
         st.metric("Data sources", "3")
         st.caption("Yahoo Finance, SEC EDGAR XBRL, offline files")
     with cols[1]:
-        st.metric("Benchmark set", "36")
-        st.caption("Companies across seven sectors")
+        st.metric("Benchmark set", "211")
+        st.caption("Companies across 11 sectors")
     with cols[2]:
         st.metric("Unit tests", "106")
         st.caption("Mostly covering missing and malformed data")
@@ -2375,7 +2375,7 @@ def render_about() -> None:
         "- **It refuses.** Negative EBITDA produces *not meaningful* rather "
         "than a flattering negative multiple. Untagged debt reports as "
         "unavailable rather than zero.\n"
-        "- **One ruler.** All 36 benchmark companies meet the same "
+        "- **One ruler.** All 211 benchmark companies meet the same "
         "thresholds, so the rankings compare.\n"
         "- **It shows its work.** Every rating point maps to a written "
         "threshold; every EDGAR figure names the XBRL tag it came from.")

@@ -43,15 +43,50 @@ from screener.metrics import compute_all_metrics
 # the same list the static site uses, minus the synthetic teaching files, which
 # must never shape a real benchmark.
 BENCHMARK_TICKERS = [
-    "AAL", "DAL", "UAL", "LUV",
-    "F", "GM", "TSLA",
-    "CCL", "RCL", "NCLH", "MAR",
-    "WMT", "TGT", "M", "KSS", "BBY",
-    "T", "VZ", "CMCSA", "DIS", "WBD", "PARA",
-    "MSFT", "AAPL", "ORCL", "IBM", "INTC",
-    "KO", "PEP", "PG", "KHC",
-    "PFE", "CVS",
-    "BA", "CAT", "XOM",
+    # ~170 US large and mid caps across every major sector. Wide enough that
+    # sector medians are built from real samples rather than a handful, and
+    # that the market scan shows a market rather than a shortlist.
+    #
+    # Edit this list and re-run to change the universe. Tickers that fail are
+    # reported and skipped, so a delisting does not break the build.
+
+    # Airlines and transport
+    "AAL", "DAL", "UAL", "LUV", "ALK", "JBLU", "UPS", "FDX", "CSX", "UNP",
+    "NSC", "ODFL", "CHRW", "EXPD",
+    # Autos and suppliers
+    "F", "GM", "TSLA", "RIVN", "LCID", "APTV", "BWA", "LEA", "GT", "HOG",
+    # Cruise, hotels, restaurants, leisure
+    "CCL", "RCL", "NCLH", "MAR", "HLT", "H", "WH", "MCD", "SBUX", "CMG",
+    "YUM", "DRI", "DPZ", "WEN", "LVS", "MGM", "WYNN", "CZR",
+    # Retail
+    "WMT", "TGT", "COST", "HD", "LOW", "M", "KSS", "JWN", "BBY", "GPS",
+    "DG", "DLTR", "ROST", "TJX", "ULTA", "FL", "BBWI", "AEO",
+    # Media, telecom, entertainment
+    "T", "VZ", "TMUS", "CMCSA", "CHTR", "DIS", "WBD", "PARA", "NFLX", "FOXA",
+    "LYV", "NYT", "OMC", "IPG",
+    # Technology and semis
+    "MSFT", "AAPL", "GOOGL", "META", "AMZN", "ORCL", "IBM", "INTC", "AMD",
+    "NVDA", "QCOM", "TXN", "MU", "AVGO", "CRM", "ADBE", "NOW", "SNOW",
+    "PLTR", "DELL", "HPQ", "HPE", "WDC", "STX", "ZM", "UBER", "LYFT", "DASH",
+    # Consumer staples
+    "KO", "PEP", "PG", "KHC", "GIS", "K", "CPB", "SJM", "HSY", "KMB", "CL",
+    "EL", "MO", "PM", "STZ", "TAP", "MDLZ", "CAG",
+    # Healthcare and pharma
+    "PFE", "MRK", "JNJ", "ABBV", "BMY", "LLY", "AMGN", "GILD", "BIIB", "CVS",
+    "UNH", "CI", "HUM", "MCK", "ABT", "TMO", "DHR", "BAX", "ZBH", "HOLX",
+    # Industrials
+    "BA", "CAT", "DE", "HON", "GE", "MMM", "LMT", "RTX", "NOC", "GD", "EMR",
+    "ETN", "PH", "ITW", "CMI", "PCAR", "SWK", "DOV",
+    # Energy and materials
+    "XOM", "CVX", "COP", "OXY", "SLB", "HAL", "DVN", "FANG", "MPC", "VLO",
+    "PSX", "KMI", "WMB", "OKE", "FCX", "NUE", "DOW", "LYB", "PPG", "SHW",
+    "NEM", "MOS", "CF",
+    # Utilities and real estate
+    "NEE", "DUK", "SO", "D", "AEP", "EXC", "SRE", "XEL", "ED", "PCG",
+    "AMT", "PLD", "SPG", "O", "VTR", "WELL", "BXP", "HST",
+    # Financials
+    "JPM", "BAC", "WFC", "C", "GS", "MS", "USB", "PNC", "TFC", "COF",
+    "AXP", "SCHW", "BLK", "BX", "KKR", "APO", "ARES", "CG",
 ]
 
 # Metrics the comparison covers, and which direction is worse. Stating this

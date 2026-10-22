@@ -255,8 +255,7 @@ of its sector:
 
 This is also where the project genuinely requires scale. One company needs seven
 figures; a credible sector median needs enough peers to be meaningful, which
-means fetching, caching and reconciling dozens of companies. The current data
-set holds **38 companies across seven sectors**.
+means fetching, caching and reconciling dozens of companies. The current data set holds **211 companies across 11 sectors**.
 
 ### Method
 
@@ -698,7 +697,7 @@ python3 -m unittest discover -s tests -v
 | `screener/altman.py` | The published Altman Z''-score (Section 9c) |
 | `build_web.py` | Injects exported data into the hosted page template |
 | `build_peer_cache.py` | Builds the sector benchmark the live app uses |
-| `data/peer_cache.json` | The committed benchmark (36 companies, 7 sectors) |
+| `data/peer_cache.json` | The committed benchmark (211 companies, 7 sectors) |
 | `tests/test_metrics.py` | 52 unit tests |
 | `data/*.json` | Synthetic teaching companies |
 | `web/index.html` | Static hosted version |
