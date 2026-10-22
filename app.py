@@ -31,7 +31,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from screener import ai, news
+from screener import ai, briefing, news
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import YearMetrics, compute_all_metrics
 from screener.models import FinancialHistory
@@ -1805,6 +1805,125 @@ def fetch_industry_news(days: int, limit: int):
     return news.fetch_all(days=days, limit=limit)
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
+def fetch_briefing(window_days: int):
+    """The computed industry briefing, cached for an hour.
+
+    Ten SEC searches plus the press feeds, so this is the most expensive thing
+    the app does. Filings do not change once made.
+    """
+    return briefing.build(window_days=window_days)
+
+
+def render_briefing() -> None:
+    """What the filings and headlines add up to, counted rather than written.
+
+    The obvious way to summarise an industry is to hand headlines to a
+    language model and ask for a paragraph: readable, unverifiable, different
+    every run. This counts instead, and assembles the prose from the counts,
+    so every sentence traces to a number shown beside it.
+    """
+    if not news.is_configured():
+        st.info(
+            "The briefing reads the SEC's filing search, which needs the same "
+            "contact string as the EDGAR source. Set `SEC_USER_AGENT` to "
+            "enable it.")
+        return
+
+    window = st.selectbox("Compare windows of", [30, 60, 90], index=1,
+                          format_func=lambda d: f"{d} days",
+                          key="brief_window")
+
+    with st.spinner("Counting filings across two windows..."):
+        try:
+            data = fetch_briefing(window)
+        except Exception as exc:
+            st.error(f"Could not build the briefing: {exc}")
+            return
+
+    recent, prior = data.recent, data.prior
+    change = data.change_pct
+
+    cols = st.columns(4)
+    with cols[0]:
+        st.metric(f"Filings, last {recent.days}d", recent.total,
+                  delta=(None if change is None
+                         else f"{change:+.0%} vs prior {prior.days}d"),
+                  delta_color="inverse")
+    with cols[1]:
+        st.metric("Bankruptcy items (1.03)", recent.by_item.get("1.03", 0),
+                  help="8-K Item 1.03 is the SEC's prescribed item for "
+                       "bankruptcy or receivership. A company cannot trigger "
+                       "it by merely discussing bankruptcy.")
+    with cols[2]:
+        st.metric("Debt accelerations (2.04)", recent.by_item.get("2.04", 0),
+                  help="Item 2.04 covers debt acceleration — typically what "
+                       "follows a covenant breach.")
+    with cols[3]:
+        st.metric("Credit headlines", data.headline_count)
+
+    st.markdown("#### The picture")
+    for line in briefing.summarise(data):
+        st.markdown(line)
+
+    left, right = st.columns(2, gap="large")
+
+    with left:
+        st.markdown("#### By event type")
+        if recent.by_category:
+            frame = pd.DataFrame(
+                [{"Event": k, "Filings": v}
+                 for k, v in sorted(recent.by_category.items(),
+                                    key=lambda kv: -kv[1])])
+            st.altair_chart(
+                alt.Chart(frame).mark_bar(cornerRadiusEnd=3).encode(
+                    y=alt.Y("Event:N", sort="-x", title=None),
+                    x=alt.X("Filings:Q", title="Filings"),
+                    color=alt.value("#b42318"),
+                    tooltip=["Event", "Filings"]
+                ).properties(height=max(160, 34 * len(frame))),
+                use_container_width=True)
+
+    with right:
+        st.markdown("#### By industry")
+        if recent.by_industry:
+            top = recent.by_industry.most_common(8)
+            frame = pd.DataFrame([{"Industry": k, "Filings": v}
+                                  for k, v in top])
+            st.altair_chart(
+                alt.Chart(frame).mark_bar(cornerRadiusEnd=3).encode(
+                    y=alt.Y("Industry:N", sort="-x", title=None),
+                    x=alt.X("Filings:Q", title="Filings"),
+                    color=alt.value("#2a5d8f"),
+                    tooltip=["Industry", "Filings"]
+                ).properties(height=max(160, 30 * len(frame))),
+                use_container_width=True)
+            st.caption(
+                "Grouped by SIC major group, the classification the filer "
+                "registered under.")
+
+    if data.themes:
+        st.markdown("#### What the press is writing about")
+        theme_frame = pd.DataFrame(
+            [{"Term": t, "Headlines": n} for t, n in data.themes])
+        st.altair_chart(
+            alt.Chart(theme_frame).mark_bar(cornerRadiusEnd=3).encode(
+                x=alt.X("Term:N", sort="-y", title=None,
+                        axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Headlines:Q", title="Headlines"),
+                color=alt.value("#2a5d8f"),
+                tooltip=["Term", "Headlines"]
+            ).properties(height=190),
+            use_container_width=True)
+
+    for err in data.errors:
+        st.caption(err)
+    st.caption(
+        f"Built {data.generated} from SEC full-text search and public RSS "
+        "feeds. Every figure above is a count of real filings or headlines — "
+        "nothing here is generated prose.")
+
+
 @st.cache_data(show_spinner=False, ttl=1800)
 def fetch_press_coverage(limit: int, filtered: bool):
     """Syndicated headlines, cached for half an hour.
@@ -1883,17 +2002,20 @@ def render_news() -> None:
     """
     st.markdown("### Industry watch")
     st.caption(
-        "Two views of the same industry. **Filings** are what companies have "
-        "formally disclosed to the SEC — narrow, checkable, and the same "
-        "source the screener reads. **Press** is what is being written about "
-        "credit and restructuring, which covers negotiation and sector "
-        "pressure weeks before any of it reaches a filing.")
+        "**Briefing** counts what is happening and says what the numbers add "
+        "up to. **Filings** are the individual events companies have "
+        "disclosed to the SEC. **Press** is what is being written, which "
+        "covers negotiation and sector pressure weeks before any of it "
+        "reaches a filing.")
 
-    filings_tab, press_tab = st.tabs(["SEC filings", "Press coverage"])
-    with press_tab:
-        render_press()
+    brief_tab, filings_tab, press_tab = st.tabs(
+        ["Briefing", "SEC filings", "Press coverage"])
+    with brief_tab:
+        render_briefing()
     with filings_tab:
         render_filings()
+    with press_tab:
+        render_press()
 
 
 def render_filings() -> None:

@@ -1144,3 +1144,88 @@ class TestPressFilter(unittest.TestCase):
                b"</item></channel></rss>")
         got = _parse_feed(xml, "X")
         self.assertEqual(got[0].summary, "Hello there")
+
+
+class TestIndustryBriefing(unittest.TestCase):
+    """The counted briefing. Arithmetic and prose assembly tested offline;
+    the network calls are not."""
+
+    def _window(self, days=60, total=0, cats=None, items=None, inds=None):
+        from collections import Counter
+        from screener.briefing import Window
+        return Window(days=days, total=total,
+                      by_category=cats or {},
+                      by_item=Counter(items or {}),
+                      by_industry=Counter(inds or {}))
+
+    def _briefing(self, recent, prior, themes=None, headlines=0):
+        from screener.briefing import Briefing
+        return Briefing(generated="2026-10-22", recent=recent, prior=prior,
+                        themes=themes or [], headline_count=headlines)
+
+    def test_sic_codes_map_to_industry_groups(self):
+        from screener.briefing import sic_to_group
+        self.assertEqual(sic_to_group("2836"), "Pharmaceuticals and chemicals")
+        self.assertEqual(sic_to_group("5961"), "Retail")
+        self.assertEqual(sic_to_group("6022"), "Banking and insurance")
+
+    def test_unparseable_sic_does_not_raise(self):
+        from screener.briefing import sic_to_group
+        self.assertEqual(sic_to_group(""), "Unclassified")
+        self.assertEqual(sic_to_group(None), "Unclassified")
+        self.assertEqual(sic_to_group("zzz"), "Unclassified")
+
+    def test_change_is_measured_against_the_prior_window(self):
+        b = self._briefing(self._window(total=240), self._window(total=202))
+        self.assertAlmostEqual(b.change_pct, (240 - 202) / 202)
+
+    def test_change_is_none_when_there_is_no_baseline(self):
+        """Dividing by an empty prior window would be a false precision."""
+        b = self._briefing(self._window(total=50), self._window(total=0))
+        self.assertIsNone(b.change_pct)
+
+    def test_summary_reports_a_rise_as_a_rise(self):
+        from screener.briefing import summarise
+        text = " ".join(summarise(self._briefing(
+            self._window(total=240, cats={"Chapter 11 petitions": 70}),
+            self._window(total=202))))
+        self.assertIn("240", text)
+        self.assertIn("up", text)
+        self.assertIn("19%", text)
+
+    def test_summary_reports_a_fall_as_a_fall(self):
+        from screener.briefing import summarise
+        text = " ".join(summarise(self._briefing(
+            self._window(total=100), self._window(total=200))))
+        self.assertIn("down", text)
+
+    def test_flat_period_is_not_described_as_a_move(self):
+        from screener.briefing import summarise
+        text = " ".join(summarise(self._briefing(
+            self._window(total=101), self._window(total=100))))
+        self.assertIn("level", text)
+        self.assertNotIn("more)", text)
+
+    def test_item_103_is_reported_as_the_hard_signal(self):
+        from screener.briefing import summarise
+        text = " ".join(summarise(self._briefing(
+            self._window(total=240, items={"1.03": 23}),
+            self._window(total=200))))
+        self.assertIn("23 companies", text)
+        self.assertIn("1.03", text)
+
+    def test_empty_window_says_so_rather_than_inventing_a_picture(self):
+        from screener.briefing import summarise
+        text = " ".join(summarise(self._briefing(
+            self._window(total=0), self._window(total=0))))
+        self.assertIn("No distress filings", text)
+
+    def test_summary_always_states_the_caveat(self):
+        """A count of filings is not a judgement about the market, and the
+        briefing must never imply otherwise."""
+        from screener.briefing import summarise
+        text = " ".join(summarise(self._briefing(
+            self._window(total=240, items={"1.03": 5}),
+            self._window(total=200))))
+        self.assertIn("not a judgement", text)
+        self.assertIn("reporting calendar", text)

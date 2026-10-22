@@ -544,6 +544,44 @@ would have said before the event. Note that companies in Chapter 11 trade
 under a Q-suffixed symbol the data sources no longer carry, so the plain
 ticker is offered where one exists.
 
+### The briefing: a counted summary rather than a written one
+
+The obvious way to summarise an industry is to hand a pile of headlines to a
+language model and ask for a paragraph. That produces something readable,
+unverifiable, and different on every run.
+
+The briefing does the opposite. It counts: distress filings this window
+against the previous one, which 8-K items were triggered, which industries
+they came from, which terms recur across the press. The prose is then
+assembled from those counts, so every sentence traces to a number displayed
+beside it.
+
+A recent run, over sixty days against the prior sixty:
+
+| | |
+|---|---|
+| Distress filings | **240**, up 19% from 202 |
+| Item 1.03 (bankruptcy or receivership) | 23 |
+| Item 2.04 (debt acceleration) | 9 |
+| Largest category | Debtor-in-possession financing, 84 |
+| Clustering in | Services, pharmaceuticals, banking |
+
+**The 8-K item numbers are the strongest signal in the whole feed.** Companies
+file 8-Ks under items the SEC prescribes rather than chooses. Item 1.03 is
+"Bankruptcy or Receivership" — a filing carrying it has entered an insolvency
+process. That is harder than any phrase search, because a company cannot
+trigger it by merely discussing bankruptcy in passing. Item 2.04 covers debt
+acceleration, which is typically what follows a covenant breach, and is the
+earliest formal sign that lenders have acted.
+
+Industry grouping uses SIC major groups, the classification each filer
+registered under.
+
+**The briefing always states its own caveat**, enforced by a test: these are
+counts of formal filings, not a judgement about the market. A rise can reflect
+genuine deterioration or simply the reporting calendar, since many industries
+cluster their fiscal year-ends and filings follow.
+
 ### Press coverage alongside filings
 
 The tab carries a second view: syndicated headlines from thirteen publishers'
