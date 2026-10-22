@@ -1007,3 +1007,66 @@ class TestMarketScanDataset(unittest.TestCase):
         tickers = {r["ticker"] for r in self._scan()["companies"]}
         self.assertNotIn("EXMPL", tickers)
         self.assertNotIn("HEALTHY", tickers)
+
+
+class TestIndustryWatch(unittest.TestCase):
+    """The SEC filing feed behind the Industry watch tab. Parsing is tested
+    offline; the network call is not."""
+
+    def test_display_name_splits_company_tickers_and_cik(self):
+        from screener.news import _parse_display_name
+        got = _parse_display_name(
+            "Leslie's, Inc.  (LESL, LESLQ)  (CIK 0001821806)")
+        self.assertEqual(got["name"], "Leslie's, Inc.")
+        self.assertEqual(got["tickers"], ["LESL", "LESLQ"])
+        self.assertEqual(got["cik"], "0001821806")
+
+    def test_display_name_without_tickers_still_parses(self):
+        from screener.news import _parse_display_name
+        got = _parse_display_name("Some Private Filer LLC  (CIK 0000999999)")
+        self.assertEqual(got["name"], "Some Private Filer LLC")
+        self.assertEqual(got["tickers"], [])
+        self.assertEqual(got["cik"], "0000999999")
+
+    def test_unparseable_name_degrades_rather_than_raising(self):
+        from screener.news import _parse_display_name
+        got = _parse_display_name("just a name")
+        self.assertEqual(got["name"], "just a name")
+        self.assertEqual(got["cik"], "")
+
+    def test_bankruptcy_ticker_is_not_the_one_offered_for_screening(self):
+        """A company in Chapter 11 trades under a Q-suffixed symbol the data
+        sources no longer carry. The plain ticker is the screenable one."""
+        from screener.news import Filing
+        f = Filing(date="2026-10-22", company="Leslie's, Inc.",
+                   tickers=["LESL", "LESLQ"], cik="0001821806",
+                   form="8-K", accession="0001193125-26-428048",
+                   category="Chapter 11 petitions")
+        self.assertEqual(f.primary_ticker, "LESL")
+
+    def test_q_only_ticker_is_still_returned(self):
+        """Some filers have no plain symbol left. Returning nothing would be
+        worse than returning the only one there is."""
+        from screener.news import Filing
+        f = Filing(date="2026-10-16", company="SANGAMO THERAPEUTICS, INC",
+                   tickers=["SGMOQ"], cik="0001001233", form="8-K",
+                   accession="0001193125-26-423054", category="x")
+        self.assertEqual(f.primary_ticker, "SGMOQ")
+
+    def test_filing_url_points_at_the_edgar_index(self):
+        from screener.news import Filing
+        f = Filing(date="2026-10-22", company="X", tickers=[],
+                   cik="0001821806", form="8-K",
+                   accession="0001193125-26-428048", category="x")
+        self.assertIn("1821806", f.url)
+        self.assertIn("000119312526428048", f.url)
+        self.assertTrue(f.url.startswith("https://www.sec.gov/"))
+
+    def test_every_category_names_a_phrase_and_a_form(self):
+        from screener.news import CATEGORIES
+        self.assertGreaterEqual(len(CATEGORIES), 5)
+        for c in CATEGORIES:
+            with self.subTest(category=c.key):
+                self.assertTrue(c.phrase.startswith('"'), "phrase must be exact")
+                self.assertTrue(c.forms)
+                self.assertTrue(c.explanation)

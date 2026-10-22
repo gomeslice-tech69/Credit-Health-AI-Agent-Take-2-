@@ -510,6 +510,44 @@ Maturities come only from SEC EDGAR, since they live in the long-term debt
 note of the 10-K. Rungs a filer did not tag are left out rather than shown as
 zero, and the interface says which.
 
+## 9e. Industry watch: live restructuring activity
+
+The tool now carries a live feed of restructuring events, read from SEC
+filings rather than news coverage.
+
+**Why filings rather than headlines.** A news feed would mean scraping a
+publisher's site: fragile, usually behind a paid key, and offering a
+journalist's summary of an event rather than the event. The SEC's full-text
+search covers every filing by every US public company, is free, requires no
+key, and returns the primary document. It is also the same source the screener
+already reads, so the project has one view of the world rather than two.
+
+**Five watched event types**, each keyed to an exact phrase, because filings
+are legal documents whose language is stable in a way headlines are not:
+
+| Event | What it means |
+|---|---|
+| Chapter 11 petitions | The outcome the whole screen tries to anticipate |
+| Restructuring support agreements | Creditor deal struck, often days before a filing |
+| Going-concern doubt | The strongest formal warning in financial reporting |
+| Forbearance and covenant waivers | A breach being negotiated — the covenant headroom the screener cannot see |
+| Debtor-in-possession financing | New money ranking ahead of existing debt; a private-credit specialism |
+
+Each item links to the filing itself, so a reader can check the claim rather
+than take it on trust. A single event often produces several near-identical
+hits, because EDGAR indexes each document in a filing separately; results are
+de-duplicated by accession number so one 8-K appears once.
+
+**It closes the loop with the screener.** Companies appearing in the feed can
+be screened directly in the Company tab, so a reader can ask what the tool
+would have said before the event. Note that companies in Chapter 11 trade
+under a Q-suffixed symbol the data sources no longer carry, so the plain
+ticker is offered where one exists.
+
+**What it is not.** This is formal disclosure, not journalism. It reports what
+has been filed, not what is rumoured or what a sector feels like. That is
+narrower and more reliable.
+
 ## 10. Limitations
 
 Knowing what the tool cannot do is most of understanding it.

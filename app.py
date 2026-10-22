@@ -31,7 +31,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from screener import ai
+from screener import ai, news
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import YearMetrics, compute_all_metrics
 from screener.models import FinancialHistory
@@ -1791,6 +1791,112 @@ def render_methodology() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Industry watch
+# ---------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def fetch_industry_news(days: int, limit: int):
+    """Recent restructuring filings, cached for an hour.
+
+    Five searches per refresh, so caching matters both for speed and for not
+    hammering the SEC. Filings do not change once made, and new ones appear
+    over hours rather than seconds, so an hour is generous.
+    """
+    return news.fetch_all(days=days, limit=limit)
+
+
+def render_news() -> None:
+    """Live restructuring activity, read from SEC filings rather than scraped.
+
+    A news feed would mean scraping somebody's site: fragile, usually paid,
+    and a journalist's summary of an event rather than the event. The SEC's
+    full-text search is free, keyless, covers every US public filer, and
+    returns the primary document — so every item here links to the filing a
+    reader can check for themselves.
+    """
+    st.markdown("### Industry watch")
+
+    if not news.is_configured():
+        st.info(
+            "This section reads the SEC's full-text filing search, which "
+            "requires the same contact string as the EDGAR data source. Set "
+            "`SEC_USER_AGENT` to enable it — see the sidebar.")
+        return
+
+    st.caption(
+        "Live restructuring activity, taken from SEC filings rather than news "
+        "coverage. These are events as companies formally disclose them: "
+        "petitions, creditor agreements, auditor warnings. Every item links "
+        "to the filing itself.")
+
+    controls = st.columns([1, 1, 2])
+    with controls[0]:
+        window = st.selectbox("Look back", [30, 90, 180, 365], index=2,
+                              format_func=lambda d: f"{d} days")
+    with controls[1]:
+        per = st.selectbox("Per category", [5, 10, 20], index=1)
+
+    try:
+        categories = fetch_industry_news(window, per)
+    except Exception as exc:
+        st.error(f"Could not load filings: {exc}")
+        return
+
+    total = sum(len(c.filings) for c in categories)
+    if total == 0:
+        st.info(
+            "No filings came back. The SEC search may be unavailable, or the "
+            "window may be too narrow — try a longer one.")
+        return
+
+    with controls[2]:
+        st.caption("")
+        st.caption(f"{total} filings across {len(categories)} event types, "
+                   f"last {window} days.")
+
+    for category in categories:
+        st.markdown(f"#### {category.label}")
+        st.caption(category.explanation)
+
+        if not category.filings:
+            st.caption("_Nothing filed in this window._")
+            st.markdown("")
+            continue
+
+        rows = []
+        for filing in category.filings:
+            rows.append({
+                "Filed": filing.date,
+                "Company": filing.company,
+                "Ticker": filing.primary_ticker or "—",
+                "Form": filing.form,
+                "Filing": filing.url,
+            })
+        st.dataframe(
+            pd.DataFrame(rows), hide_index=True, use_container_width=True,
+            column_config={
+                "Filing": st.column_config.LinkColumn(
+                    "Filing", display_text="Open on EDGAR"),
+            })
+
+        # The point of pairing a news feed with a screener: these companies
+        # can be run through it. Tickers ending in Q are post-bankruptcy
+        # symbols that the data sources usually no longer carry.
+        screenable = sorted({f.primary_ticker for f in category.filings
+                             if f.primary_ticker
+                             and not f.primary_ticker.endswith("Q")})
+        if screenable:
+            st.caption("Screen any of these in the Company tab: "
+                       + ", ".join(f"`{t}`" for t in screenable[:10]))
+        st.markdown("")
+
+    st.caption(
+        "Source: SEC EDGAR full-text search, covering every filing by every "
+        "US public company. Refreshed hourly. This is formal disclosure, not "
+        "journalism — it reports what has been filed, not what is rumoured.")
+
+
+# ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
 
@@ -1962,8 +2068,10 @@ def main() -> None:
     # scrolling past a section perceives far less than one who chose to open
     # it. The tabs also separate two genuinely different tasks: screening one
     # company, and scanning the whole set.
-    tab_labels = ["Company", "Market scan", "Methodology", "About"]
-    company_tab, scan_tab, method_tab, about_tab = st.tabs(tab_labels)
+    tab_labels = ["Company", "Market scan", "Industry watch", "Methodology",
+                  "About"]
+    (company_tab, scan_tab, news_tab, method_tab,
+     about_tab) = st.tabs(tab_labels)
 
     with company_tab:
         if analysis is None:
@@ -1984,6 +2092,9 @@ def main() -> None:
 
     with scan_tab:
         render_market_scan()
+
+    with news_tab:
+        render_news()
 
     with method_tab:
         render_methodology()
