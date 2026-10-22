@@ -1805,6 +1805,73 @@ def fetch_industry_news(days: int, limit: int):
     return news.fetch_all(days=days, limit=limit)
 
 
+@st.cache_data(show_spinner=False, ttl=1800)
+def fetch_press_coverage(limit: int, filtered: bool):
+    """Syndicated headlines, cached for half an hour.
+
+    Seven feeds per refresh. Publishers update over minutes, and nobody needs
+    a fresh pull per interaction.
+    """
+    return news.fetch_press(limit=limit, filtered=filtered)
+
+
+def render_press() -> None:
+    """What is being written, as opposed to what has been filed.
+
+    The SEC feed reports formal disclosure. This reports journalism, which
+    covers rumour, negotiation and sector pressure weeks before any of it
+    reaches a filing -- and covers private credit, which barely files at all.
+    """
+    st.caption(
+        "Headlines from publishers' public RSS feeds, filtered to credit and "
+        "restructuring. Clicking through opens the publisher's site, where "
+        "your own subscription applies — nothing here bypasses a paywall.")
+
+    controls = st.columns([1, 1, 2])
+    with controls[0]:
+        count = st.selectbox("Show", [15, 30, 50], index=1, key="press_n")
+    with controls[1]:
+        only_credit = st.toggle("Credit only", value=True, key="press_f",
+                                help="Off shows every headline from these "
+                                     "feeds, including general business news.")
+
+    try:
+        articles = fetch_press_coverage(count, only_credit)
+    except Exception as exc:
+        st.error(f"Could not load headlines: {exc}")
+        return
+
+    if not articles:
+        st.info(
+            "No matching headlines right now. Try turning off the credit "
+            "filter, or check back later — these feeds move through the day.")
+        return
+
+    with controls[2]:
+        st.caption("")
+        st.caption(f"{len(articles)} headlines from "
+                   f"{len({a.source for a in articles})} publishers.")
+
+    for article in articles:
+        head = st.columns([5, 1])
+        with head[0]:
+            st.markdown(f"**[{article.title}]({article.link})**")
+        with head[1]:
+            st.caption(article.published or "")
+        line = f"{article.source}"
+        if article.matched:
+            line += " · " + ", ".join(article.matched[:4])
+        st.caption(line)
+        if article.summary:
+            st.caption(article.summary[:240])
+        st.markdown("")
+
+    st.caption(
+        "Sources: " + ", ".join(news.feed_sources()) + ". Headlines and "
+        "summaries come from each publisher's own public RSS feed. Refreshed "
+        "every 30 minutes.")
+
+
 def render_news() -> None:
     """Live restructuring activity, read from SEC filings rather than scraped.
 
@@ -1815,7 +1882,22 @@ def render_news() -> None:
     reader can check for themselves.
     """
     st.markdown("### Industry watch")
+    st.caption(
+        "Two views of the same industry. **Filings** are what companies have "
+        "formally disclosed to the SEC — narrow, checkable, and the same "
+        "source the screener reads. **Press** is what is being written about "
+        "credit and restructuring, which covers negotiation and sector "
+        "pressure weeks before any of it reaches a filing.")
 
+    filings_tab, press_tab = st.tabs(["SEC filings", "Press coverage"])
+    with press_tab:
+        render_press()
+    with filings_tab:
+        render_filings()
+
+
+def render_filings() -> None:
+    """Restructuring events as formally filed with the SEC."""
     if not news.is_configured():
         st.info(
             "This section reads the SEC's full-text filing search, which "

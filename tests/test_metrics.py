@@ -1070,3 +1070,77 @@ class TestIndustryWatch(unittest.TestCase):
                 self.assertTrue(c.phrase.startswith('"'), "phrase must be exact")
                 self.assertTrue(c.forms)
                 self.assertTrue(c.explanation)
+
+
+class TestPressFilter(unittest.TestCase):
+    """The credit-relevance filter on syndicated headlines.
+
+    Every case below is a real headline the first implementation got wrong:
+    substring matching found 'lbo' inside 'DealBook' and 'clo' inside
+    'Neocloud', and personal-finance columns matched on 'debt'.
+    """
+
+    def _keep(self, title, summary=""):
+        from screener.news import Article, _relevant
+        a = Article(title=title, link="x", source="s", published=None,
+                    summary=summary)
+        return _relevant(a), a
+
+    def test_acronyms_do_not_match_inside_words(self):
+        for title in ("Sign Up for DealBook",
+                      "The Fallout From the 'Neocloud' Wipeout",
+                      "Global markets close higher"):
+            with self.subTest(title=title):
+                keep, _ = self._keep(title)
+                self.assertFalse(keep, title)
+
+    def test_personal_finance_columns_are_excluded(self):
+        for title in ("My father-in-law, 81, sold his $75,000 home to pay debt",
+                      "We have a $300,000 mortgage with a 2.75% interest rate",
+                      "Should I pay off my student loan or invest?"):
+            with self.subTest(title=title):
+                keep, _ = self._keep(title)
+                self.assertFalse(keep, title)
+
+    def test_one_strong_term_qualifies(self):
+        for title in ("Canada acts to avoid insolvency at Canada Post",
+                      "Private credit funds pile into distressed deals",
+                      "Retailer files for Chapter 11 after covenant breach"):
+            with self.subTest(title=title):
+                keep, art = self._keep(title)
+                self.assertTrue(keep, title)
+                self.assertTrue(art.matched)
+
+    def test_two_weak_terms_qualify_without_a_strong_one(self):
+        keep, art = self._keep(
+            "Banks prepare to sell billions of X loans", "debt and lenders")
+        self.assertTrue(keep)
+        self.assertGreaterEqual(len(art.matched), 2)
+
+    def test_a_single_weak_term_is_not_enough(self):
+        keep, _ = self._keep("Company issues a bond to fund expansion")
+        self.assertFalse(keep)
+
+    def test_unrelated_news_is_rejected(self):
+        keep, _ = self._keep("Apple unveils a new iPhone")
+        self.assertFalse(keep)
+
+    def test_malformed_feed_yields_no_articles_rather_than_raising(self):
+        """One publisher changing their XML must not take down the page."""
+        from screener.news import _parse_feed
+        self.assertEqual(_parse_feed(b"not xml at all", "X"), [])
+        self.assertEqual(_parse_feed(b"<rss><channel></channel></rss>", "X"), [])
+
+    def test_items_without_a_link_are_skipped(self):
+        from screener.news import _parse_feed
+        xml = b"<rss><channel><item><title>No link</title></item></channel></rss>"
+        self.assertEqual(_parse_feed(xml, "X"), [])
+
+    def test_html_is_stripped_from_summaries(self):
+        from screener.news import _parse_feed
+        xml = (b"<rss><channel><item><title>T</title>"
+               b"<link>http://x</link>"
+               b"<description>&lt;p&gt;Hello   there&lt;/p&gt;</description>"
+               b"</item></channel></rss>")
+        got = _parse_feed(xml, "X")
+        self.assertEqual(got[0].summary, "Hello there")

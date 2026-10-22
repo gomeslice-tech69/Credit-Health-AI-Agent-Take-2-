@@ -544,9 +544,31 @@ would have said before the event. Note that companies in Chapter 11 trade
 under a Q-suffixed symbol the data sources no longer carry, so the plain
 ticker is offered where one exists.
 
-**What it is not.** This is formal disclosure, not journalism. It reports what
-has been filed, not what is rumoured or what a sector feels like. That is
-narrower and more reliable.
+### Press coverage alongside filings
+
+The tab carries a second view: syndicated headlines from thirteen publishers'
+public RSS feeds, filtered to credit and restructuring. The two complement
+each other — filings are narrow and checkable, while journalism covers
+negotiation and sector pressure weeks before anything reaches a filing, and
+covers private credit, which barely files at all.
+
+**A subscription is not API access.** A personal WSJ or NYT subscription lets
+a person read articles in a browser; it grants an application nothing. What
+these publishers do offer is public RSS: headlines, summaries and links, free
+and keyless. The reader clicks through and their own subscription handles the
+paywall. Nothing here circumvents one.
+
+**A bug worth recording.** The relevance filter originally matched keywords as
+plain substrings, which looked correct and was quietly wrong: `lbo` matched
+*Dea**lbo**ok*, `clo` matched *neo**clo**ud*, and personal-finance advice
+columns matched on `debt`. Matching is now on word boundaries, with two tiers —
+one unambiguous term qualifies an article, while common terms like "debt" need
+a second one — plus an exclusion list for advice columns. Nine test cases, each
+a real headline the first version misclassified.
+
+**What it is not.** The filings half is formal disclosure, not journalism: it
+reports what has been filed, not what is rumoured. The press half is the
+reverse. Neither alone is the whole picture, which is why both are shown.
 
 ## 10. Limitations
 

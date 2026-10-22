@@ -275,3 +275,213 @@ def is_configured() -> bool:
         return True
     except EdgarError:
         return False
+
+
+# ---------------------------------------------------------------------------
+# Press coverage
+#
+# The SEC feed above reports what has been FILED. This one reports what is
+# being WRITTEN, which is a different and complementary thing: journalists
+# cover rumour, negotiation and sector pressure weeks before any of it reaches
+# a filing, and they cover private credit, which barely files at all.
+#
+# A SUBSCRIPTION IS NOT API ACCESS. A personal WSJ or NYT subscription lets a
+# person read articles in their browser; it grants an application nothing.
+# What these publishers do offer is public RSS: headlines, summaries and
+# links, free and without a key. The reader clicks through and their own
+# subscription handles the paywall. Nothing here circumvents one.
+# ---------------------------------------------------------------------------
+
+import xml.etree.ElementTree as _ET
+from email.utils import parsedate_to_datetime as _parsedate
+
+# Public RSS endpoints. Each publisher offers these deliberately -- they are
+# how syndication has always worked -- so this is not scraping.
+FEEDS = [
+    # Deal and credit coverage first -- these carry the highest density of
+    # relevant stories. The general business feeds are included because
+    # restructuring news often breaks there before it reaches a specialist
+    # column.
+    ("NYT DealBook", "https://rss.nytimes.com/services/xml/rss/nyt/DealBook.xml"),
+    ("WSJ Markets", "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"),
+    ("WSJ Business", "https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml"),
+    ("Bloomberg Markets", "https://feeds.bloomberg.com/markets/news.rss"),
+    ("FT Companies", "https://www.ft.com/companies?format=rss"),
+    ("CNBC Finance", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                     "?partnerId=wrss01&id=10000664"),
+    ("CNBC Economy", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                     "?partnerId=wrss01&id=20910258"),
+    ("NYT Business", "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"),
+    ("NYT Economy", "https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml"),
+    ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
+    ("Seeking Alpha", "https://seekingalpha.com/market_currents.xml"),
+    ("SEC press", "https://www.sec.gov/news/pressreleases.rss"),
+    ("Federal Reserve", "https://www.federalreserve.gov/feeds/press_all.xml"),
+]
+
+# Generic business news is noise for this project, so articles are filtered.
+#
+# MATCHING IS ON WORD BOUNDARIES, NOT SUBSTRINGS. Plain substring matching
+# looked fine and was quietly wrong: "lbo" matched "DeaLBOok", "clo" matched
+# "neoCLOud", and a personal-finance column about a mortgage matched "interest
+# rate". Short acronyms are exactly the terms that collide with ordinary words.
+#
+# Two tiers. A STRONG term is unambiguous enough to qualify an article on its
+# own. A WEAK term is real vocabulary but too common to stand alone -- it
+# qualifies only alongside another weak term, which keeps "debt" from dragging
+# in every retirement column.
+STRONG_TERMS = [
+    "restructuring", "restructure", "bankruptcy", "bankrupt", "chapter 11",
+    "insolvency", "insolvent", "liquidation", "private credit",
+    "direct lending", "distressed", "bondholder", "creditors", "covenant",
+    "forbearance", "high-yield", "junk bond", "leveraged loan",
+    "leveraged buyout", "going concern", "debt restructuring",
+    "maturity wall", "credit market", "debt load", "default",
+    "collateralized loan", "dip financing", "chapter 7",
+]
+WEAK_TERMS = [
+    "debt", "credit", "lender", "lenders", "loan", "loans", "leverage",
+    "refinance", "refinancing", "downgrade", "bond", "bonds", "yield",
+    "buyout", "creditor",
+]
+
+# Personal-finance advice columns use the same vocabulary as credit reporting
+# and are never relevant here. These phrases are a reliable tell.
+EXCLUDE_PATTERNS = [
+    r"\bmy (husband|wife|son|daughter|mother|father|parents|in-law)",
+    r"\bshould i\b", r"\bhow much should\b", r"\bi'm \d+ and\b",
+    r"\bmy \$[\d,]+\b", r"\bretire(ment)? plan\b", r"\bsign up for\b",
+]
+
+_STRONG_RE = re.compile(
+    r"(?<![a-z])(" + "|".join(re.escape(t) for t in STRONG_TERMS) + r")(?![a-z])",
+    re.I)
+_WEAK_RE = re.compile(
+    r"(?<![a-z])(" + "|".join(re.escape(t) for t in WEAK_TERMS) + r")(?![a-z])",
+    re.I)
+_EXCLUDE_RE = re.compile("|".join(EXCLUDE_PATTERNS), re.I)
+
+_RSS_UA = ("Mozilla/5.0 (compatible; CreditHealthAgent/1.0; educational "
+           "project; +https://github.com/gomeslice-tech69)")
+
+
+@dataclass
+class Article:
+    """One syndicated headline."""
+
+    title: str
+    link: str
+    source: str
+    published: Optional[str]
+    summary: str
+    matched: List[str] = field(default_factory=list)
+
+
+def _clean(text: Optional[str]) -> str:
+    """Strip tags and collapse whitespace out of an RSS description."""
+    if not text:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", text)).strip()
+
+
+def _parse_feed(raw: bytes, source: str) -> List[Article]:
+    """Parse an RSS document into articles.
+
+    A malformed feed returns nothing rather than raising: one publisher
+    changing their XML must not take down the whole page.
+    """
+    try:
+        root = _ET.fromstring(raw)
+    except _ET.ParseError:
+        return []
+
+    articles: List[Article] = []
+    for item in root.iter("item"):
+        title = _clean(item.findtext("title"))
+        link = (item.findtext("link") or "").strip()
+        if not title or not link:
+            continue
+
+        raw_date = item.findtext("pubDate") or item.findtext("published")
+        published = None
+        if raw_date:
+            try:
+                published = _parsedate(raw_date).date().isoformat()
+            except (TypeError, ValueError):
+                published = None
+
+        articles.append(Article(
+            title=title, link=link, source=source, published=published,
+            summary=_clean(item.findtext("description"))[:320]))
+    return articles
+
+
+def _relevant(article: Article) -> bool:
+    """Keep an article only if it genuinely concerns credit or distress.
+
+    One strong term qualifies an article. Two weak terms also qualify, which
+    catches real reporting that happens not to use a headline keyword. A
+    personal-finance advice column is rejected outright however it scores --
+    those use identical vocabulary and are never relevant here.
+
+    The matched terms are recorded so the interface can show why an article
+    was kept, rather than asking the reader to trust the filter.
+    """
+    haystack = article.title + " " + article.summary
+
+    if _EXCLUDE_RE.search(haystack):
+        article.matched = []
+        return False
+
+    strong = {m.group(0).lower() for m in _STRONG_RE.finditer(haystack)}
+    weak = {m.group(0).lower() for m in _WEAK_RE.finditer(haystack)}
+
+    if strong:
+        article.matched = sorted(strong)
+        return True
+    if len(weak) >= 2:
+        article.matched = sorted(weak)
+        return True
+
+    article.matched = []
+    return False
+
+
+def fetch_press(limit: int = 30, filtered: bool = True) -> List[Article]:
+    """Pull every feed and return the credit-relevant articles, newest first.
+
+    One feed failing does not fail the rest. Publishers change endpoints and
+    rate-limit without warning, so a partial page beats an error page.
+    """
+    collected: List[Article] = []
+    seen_links = set()
+
+    for source, url in FEEDS:
+        request = urllib.request.Request(
+            url, headers={"User-Agent": _RSS_UA,
+                          "Accept": "application/rss+xml, application/xml, text/xml, */*"})
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                raw = response.read()
+                if response.headers.get("Content-Encoding") == "gzip":
+                    raw = gzip.decompress(raw)
+        except Exception:
+            continue
+
+        for article in _parse_feed(raw, source):
+            if article.link in seen_links:
+                continue
+            seen_links.add(article.link)
+            if filtered and not _relevant(article):
+                continue
+            if not filtered:
+                _relevant(article)
+            collected.append(article)
+
+    collected.sort(key=lambda a: a.published or "", reverse=True)
+    return collected[:limit]
+
+
+def feed_sources() -> List[str]:
+    """The publishers consulted, for display."""
+    return sorted({name for name, _ in FEEDS})
