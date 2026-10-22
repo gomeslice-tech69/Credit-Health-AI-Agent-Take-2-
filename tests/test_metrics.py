@@ -34,7 +34,8 @@ from screener.narrative import (restructuring_watch,                # noqa: E402
 from screener.peers import (PeerCacheUnavailable,                   # noqa: E402
                             compare_to_peers, compare_to_sector,
                             load_peer_cache, median)
-from screener.rating import ELEVATED, LOW, rate_stress              # noqa: E402
+from screener.rating import (ELEVATED, LOW, MODERATE,              # noqa: E402
+                             rate_stress)
 from screener.scenario import run_ebitda_downside                   # noqa: E402
 from screener.signals import evaluate_signals                       # noqa: E402
 
@@ -953,3 +954,56 @@ class TestMarkdownMoneyEscaping(unittest.TestCase):
                              units="millions")
         self.assertEqual(app.fmt_money(3641.0, h), "$3.6bn")
         self.assertNotIn("\\", app.fmt_money(3641.0, h))
+
+
+class TestMarketScanDataset(unittest.TestCase):
+    """The pre-screened benchmark set behind the market scan."""
+
+    def _scan(self):
+        import json
+        with open("data/market_scan.json", encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_every_company_carries_a_rating_and_a_rank(self):
+        for row in self._scan()["companies"]:
+            with self.subTest(ticker=row["ticker"]):
+                self.assertIn(row["rating"],
+                              (LOW, MODERATE, ELEVATED, "Insufficient Data"))
+                self.assertGreaterEqual(row["rank"], 1)
+
+    def test_ranking_is_worst_first(self):
+        """The ordering is the point: a rank that does not track the score
+        would make the whole scan misleading."""
+        rows = self._scan()["companies"]
+        ratios = [r["ratio"] or 0 for r in rows]
+        self.assertEqual(ratios, sorted(ratios, reverse=True))
+
+    def test_scores_match_their_stated_band(self):
+        """A row labelled Elevated must actually clear the Elevated cut-off,
+        or the scan and the screener disagree."""
+        from screener.rating import LOW_CEILING, MODERATE_CEILING
+        for row in self._scan()["companies"]:
+            ratio = row["ratio"]
+            if ratio is None:
+                continue
+            with self.subTest(ticker=row["ticker"]):
+                expected = (LOW if ratio < LOW_CEILING
+                            else MODERATE if ratio < MODERATE_CEILING
+                            else ELEVATED)
+                self.assertEqual(row["rating"], expected)
+
+    def test_sector_medians_need_at_least_three_companies(self):
+        """A median built from two is an anecdote."""
+        scan = self._scan()
+        counts = {}
+        for row in scan["companies"]:
+            if row["sector"]:
+                counts[row["sector"]] = counts.get(row["sector"], 0) + 1
+        for sector in scan.get("sectorMedians", {}):
+            self.assertGreaterEqual(counts.get(sector, 0), 3, sector)
+
+    def test_synthetic_companies_are_absent(self):
+        """Invented figures must never enter a real benchmark."""
+        tickers = {r["ticker"] for r in self._scan()["companies"]}
+        self.assertNotIn("EXMPL", tickers)
+        self.assertNotIn("HEALTHY", tickers)

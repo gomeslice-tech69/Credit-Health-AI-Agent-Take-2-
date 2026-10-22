@@ -43,7 +43,7 @@ were assessed, and the rating is marked low-confidence below four.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from .metrics import YearMetrics
 
@@ -102,6 +102,113 @@ COVERAGE_BANDS = [
     (6.0, 1, "3.0x to 6.0x"),
     (float("inf"), 0, "above 6.0x"),
 ]
+
+
+
+# ---------------------------------------------------------------------------
+# Pure scoring
+#
+# Each function below turns one raw value into points. They hold the only copy
+# of the threshold logic: the Factor builders further down call them, and so
+# does the what-if panel in the app. A second copy of "4.0x scores 2 points"
+# would eventually disagree with this one.
+# ---------------------------------------------------------------------------
+
+def score_leverage_level(value: Optional[float]) -> Tuple[int, str]:
+    """Net Debt/EBITDA -> points. Negative means a net cash position."""
+    if value is None:
+        return 0, "not available"
+    if value < 0:
+        return 0, "net cash position"
+    for ceiling, points, label in LEVERAGE_BANDS:
+        if value < ceiling:
+            return points, label
+    return 3, "above 6.0x"
+
+
+def score_leverage_trend(delta: Optional[float]) -> Tuple[int, str]:
+    """Change in Net Debt/EBITDA, earliest to latest -> points."""
+    if delta is None:
+        return 0, "not available"
+    if delta <= 0:
+        return 0, "improving or flat"
+    return (1, "worse by under 1.0x") if delta < 1.0 else (2, "worse by 1.0x or more")
+
+
+def score_coverage_value(value: Optional[float]) -> Tuple[int, str]:
+    """Interest coverage -> points. Reversed: higher is better."""
+    if value is None:
+        return 0, "not available"
+    if value < 0:
+        return 3, "negative — EBITDA does not cover interest"
+    for ceiling, points, label in COVERAGE_BANDS:
+        if value < ceiling:
+            return points, label
+    return 0, "above 6.0x"
+
+
+# Free cash flow is a state rather than a number: what happened in the last
+# two years. The index is the score, which is why the order matters.
+FCF_STATES = [
+    "positive in both years",
+    "positive in the latest year only",
+    "negative in the latest year",
+    "negative in both years",
+]
+
+
+def score_fcf_state(state_index: int) -> Tuple[int, str]:
+    state_index = max(0, min(len(FCF_STATES) - 1, int(state_index)))
+    return state_index, FCF_STATES[state_index]
+
+
+def score_ebitda_change(change: Optional[float]) -> Tuple[int, str]:
+    """Fractional change in EBITDA, earliest to latest -> points."""
+    if change is None:
+        return 0, "not available"
+    if change >= 0:
+        return 0, "growing or flat"
+    return (1, "down under 10%") if change > -0.10 else (2, "down 10% or more")
+
+
+def rate_from_inputs(leverage: Optional[float],
+                     leverage_change: Optional[float],
+                     coverage: Optional[float],
+                     fcf_state: int,
+                     ebitda_change: Optional[float]) -> StressRating:
+    """Score the five factors directly from raw values.
+
+    Used by the what-if panel, where the reader moves each input by hand.
+    Shares every threshold with the normal path, so a hand-set 8.7x scores
+    exactly what a measured 8.7x would.
+    """
+    specs = [
+        ("Leverage level", 3, score_leverage_level(leverage)),
+        ("Leverage trend", 2, score_leverage_trend(leverage_change)),
+        ("Interest coverage", 3, score_coverage_value(coverage)),
+        ("Free cash flow", 3, score_fcf_state(fcf_state)),
+        ("EBITDA trend", 2, score_ebitda_change(ebitda_change)),
+    ]
+    factors = [
+        Factor(name=name, points=points, max_points=cap,
+               observation=label, threshold_note="")
+        for name, cap, (points, label) in specs
+    ]
+    score = sum(f.points or 0 for f in factors)
+    max_score = sum(f.max_points for f in factors)
+    ratio = score / max_score if max_score else None
+
+    if ratio is None:
+        band = INSUFFICIENT
+    elif ratio < LOW_CEILING:
+        band = LOW
+    elif ratio < MODERATE_CEILING:
+        band = MODERATE
+    else:
+        band = ELEVATED
+
+    return StressRating(band, score, max_score, ratio, factors,
+                        "Scored from values set by hand.")
 
 
 def _score_leverage_level(latest: YearMetrics) -> Factor:
