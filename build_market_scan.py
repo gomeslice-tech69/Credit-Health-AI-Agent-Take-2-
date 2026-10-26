@@ -31,6 +31,7 @@ from datetime import date
 from typing import Any, Dict, List
 
 from screener.altman import compute_z_score, is_meaningful_for
+from screener.applicability import assess
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import compute_all_metrics
 from screener.rating import rate_stress, rating_trajectory
@@ -46,6 +47,13 @@ def screen(ticker: str) -> Dict[str, Any]:
     history = load_history(ticker, source="yfinance", max_years=5)
     if len(history.years) < 2:
         raise DataLoadError(f"Only {len(history.years)} year(s) for {ticker}")
+
+    # Banks and insurers are excluded outright. Their ratios do not carry the
+    # usual meaning, and a bank sitting in a ranked list of stress scores
+    # misleads about both the bank and everything near it.
+    applies = assess(history.sector, history.industry)
+    if not applies.can_rate:
+        raise DataLoadError(f"{ticker}: {applies.headline}")
 
     metrics = compute_all_metrics(history)
     years = history.sorted_years()

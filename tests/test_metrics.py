@@ -1309,3 +1309,69 @@ class TestQuizBank(unittest.TestCase):
         self.assertIn("Full marks", grade(5, 5))
         self.assertTrue(grade(0, 5))
         self.assertIn("No questions", grade(0, 0))
+
+
+class TestFrameworkApplicability(unittest.TestCase):
+    """Whether the credit framework applies at all.
+
+    Goldman Sachs reports more interest expense than revenue and deeply
+    negative operating cash flow. Both are normal for a bank and neither
+    means distress. Scoring it anyway produced three of three stress points
+    for "a sustained cash shortfall" -- a confident, meaningless number.
+    """
+
+    def _assess(self, sector, industry=None):
+        from screener.applicability import assess
+        return assess(sector, industry)
+
+    def test_banks_and_insurers_are_refused(self):
+        for sector, industry in [
+                ("Financial Services", "Banks—Diversified"),
+                ("Financial Services", "Capital Markets"),
+                ("Financial Services", "Insurance—Life"),
+                ("Financials", "Asset Management")]:
+            with self.subTest(industry=industry):
+                self.assertFalse(self._assess(sector, industry).can_rate)
+
+    def test_refusal_explains_why_rather_than_just_declining(self):
+        got = self._assess("Financial Services", "Banks—Diversified")
+        self.assertIn("lend", got.detail.lower())
+        self.assertIn("interest expense", got.detail.lower())
+        # It must also say what IS used instead, or the reader learns nothing.
+        self.assertIn("capital ratio", got.detail.lower())
+
+    def test_reits_and_utilities_are_rated_with_a_caveat(self):
+        """These are rateable; the thresholds are simply calibrated for
+        industrials, which the sector comparison already handles."""
+        for sector, industry in [("Real Estate", "REIT—Retail"),
+                                 ("Utilities", "Utilities—Regulated Electric")]:
+            with self.subTest(sector=sector):
+                got = self._assess(sector, industry)
+                self.assertTrue(got.can_rate)
+                self.assertFalse(got.is_full)
+                self.assertTrue(got.detail)
+
+    def test_ordinary_companies_are_fully_applicable(self):
+        for sector, industry in [("Industrials", "Airlines"),
+                                 ("Technology", "Software"),
+                                 ("Consumer Cyclical", "Auto Manufacturers"),
+                                 (None, None)]:
+            with self.subTest(sector=sector):
+                got = self._assess(sector, industry)
+                self.assertTrue(got.is_full)
+                self.assertTrue(got.can_rate)
+
+    def test_industry_alone_is_enough_to_refuse(self):
+        """Sources disagree on sector labels; the industry string often
+        carries the signal when the sector does not."""
+        self.assertFalse(self._assess("Other", "Regional Banks").can_rate)
+
+    def test_the_benchmark_contains_no_financial_companies(self):
+        """A median mixing banks with manufacturers is not a benchmark."""
+        import json
+        from screener.applicability import assess
+        with open("data/market_scan.json", encoding="utf-8") as fh:
+            scan = json.load(fh)
+        offenders = [r["ticker"] for r in scan["companies"]
+                     if not assess(r.get("sector"), r.get("industry")).can_rate]
+        self.assertEqual(offenders, [], f"financials in the scan: {offenders}")

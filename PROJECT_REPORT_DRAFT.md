@@ -633,6 +633,54 @@ repeats within a round, and a fixed seed so a Streamlit rerun does not
 reshuffle a round in progress. A quiz that marks a correct answer wrong
 teaches the opposite of what it intends.
 
+## 9g. Knowing when the framework does not apply
+
+Screening Goldman Sachs exposed a defect more serious than any missing figure.
+The tool produced a rating. It should have refused.
+
+| Goldman Sachs, FY2025 | |
+|---|---|
+| Revenue | 58,283 |
+| Interest expense | **66,814** |
+| EBITDA | not reported |
+| Operating cash flow | **−45,154** |
+
+None of that is distress. A bank borrows **in order to lend** — deposits and
+wholesale funding are raw material, not capital structure. Interest expense
+sits closer to cost of goods sold than to a financing cost, which is why it
+exceeds revenue and why no bank reports EBITDA: earnings *before interest* is
+not a meaningful quantity for a lender. The negative operating cash flow
+reflects a growing loan book, not cash burn.
+
+The screener nonetheless awarded **three of three stress points** for "a
+sustained cash shortfall", then marked four factors unassessable. A confident
+wrong answer dressed in partial data.
+
+### The fix
+
+`screener/applicability.py` classifies every company before anything is
+scored:
+
+| | |
+|---|---|
+| **Not applicable** | Banks, insurers, asset managers. No rating produced; the page explains why and names what *is* used instead — CET1, net interest margin, loan loss provisions, liquidity coverage. |
+| **Applies with caveats** | REITs and regulated utilities. Rated, with a warning that the thresholds are calibrated for industrials. |
+| **Applies** | Everything else. |
+
+Financial companies are also excluded from the benchmark builders. Eighteen
+were silently sitting in the peer medians, where a bank's funding profile
+corrupts the comparison for every manufacturer beside it. The universe is now
+**193 companies across 10 sectors**, all of them ones the framework fits.
+
+### The general lesson
+
+This is the third instance of one pattern in this project. Ford's 39x, the
+two sources disagreeing on total debt, and now Goldman Sachs are all cases
+where **the arithmetic is correct and the interpretation is wrong** — the
+characteristic failure of financial software, and one that no amount of
+testing the calculations would catch. Each was found by looking at output for
+a company where the answer was already known to be implausible.
+
 ## 10. Limitations
 
 Knowing what the tool cannot do is most of understanding it.
@@ -656,10 +704,12 @@ Knowing what the tool cannot do is most of understanding it.
    year.
 8. **Captive finance arms distort leverage.** Mitigated by the warning
    described in Section 7, not solved.
-9. **EDGAR covers only SEC filers**, and returns no sector classification, so
+9. **Financial companies cannot be screened at all** (Section 9g), and REITs
+   and utilities are rated against thresholds calibrated for industrials.
+10. **EDGAR covers only SEC filers**, and returns no sector classification, so
    peer comparison is unavailable on that source. Foreign issuers reporting
    under IFRS, funds and private companies are absent.
-10. **Yahoo Finance is an unofficial source.** It is a scraper, occasionally
+11. **Yahoo Finance is an unofficial source.** It is a scraper, occasionally
    omits line items, and can change without notice. Where EBITDA is not
    reported, the loader reconstructs it as Operating Income + D&A and records a
    note that is displayed in the output. That is a disclosed reconstruction

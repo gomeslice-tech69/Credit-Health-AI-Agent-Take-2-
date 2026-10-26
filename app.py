@@ -32,7 +32,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from screener import ai, briefing, news, quiz
+from screener import ai, applicability, briefing, news, quiz
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import YearMetrics, compute_all_metrics
 from screener.models import FinancialHistory
@@ -554,6 +554,19 @@ def run_agent_workflow(ticker: str, source: str, years: int,
         st.write(f"Identified credit signals — {fired} of {len(signals)} "
                  f"triggered")
 
+        # --- Applicability -------------------------------------------------
+        # Decided before anything is reported. A bank scored by this framework
+        # produces a confident, meaningless number -- worse than no answer.
+        applies = applicability.assess(history.sector, history.industry)
+        if not applies.can_rate:
+            st.write(f"Stopped — {applies.headline}")
+            status.update(label=f"{history.ticker}: framework not applicable",
+                          state="complete", expanded=False)
+            return {"history": history, "metrics": metrics,
+                    "applicability": applies, "signals": signals,
+                    "rating": None, "narrative": None, "peers": None,
+                    "trajectory": []}
+
         # --- Step 6: sector comparison ------------------------------------
         cache, cache_error = peer_benchmark()
         if cache is None:
@@ -587,6 +600,7 @@ def run_agent_workflow(ticker: str, source: str, years: int,
             "narrative": narrative,
             "peers": peers,
             "trajectory": trajectory,
+            "applicability": applies,
         }
 
         if use_claude:
@@ -2404,6 +2418,25 @@ def render_company(analysis: Dict[str, object]) -> None:
     """
     section_header(analysis["history"], analysis["metrics"])
 
+    applies = analysis.get("applicability")
+    if applies is not None and not applies.can_rate:
+        st.error(f"**{applies.headline}**")
+        st.markdown(applies.detail)
+        with st.expander("What was read from the filings anyway"):
+            years = analysis["history"].sorted_years()
+            rows = [{
+                "Year": fy.year, "Revenue": fy.revenue, "Cash": fy.cash,
+                "Total debt": fy.total_debt,
+                "Interest expense": fy.interest_expense,
+                "Operating cash flow": fy.operating_cash_flow,
+            } for fy in years]
+            st.dataframe(pd.DataFrame(rows), hide_index=True,
+                         use_container_width=True)
+            st.caption(
+                "These figures are read correctly. It is the ratios built "
+                "from them that do not carry their usual meaning here.")
+        return
+
     # The answer, in one line, before any chart. A reader should be able to
     # leave after this sentence and still know what the tool concluded.
     rating = analysis["rating"]
@@ -2433,6 +2466,10 @@ def render_company(analysis: Dict[str, object]) -> None:
             ELEVATED: "error"}.get(rating.rating, "info")
     message = (f"**{rating.rating}** — {headline}.{peer_note}")
     getattr(st, band)(message)
+
+    if applies is not None and not applies.is_full:
+        with st.expander(f"⚠ {applies.headline}"):
+            st.markdown(applies.detail)
 
     verdict, trends, risk, next_steps = st.tabs(
         ["Verdict", "Trends", "Risk", "What next"])

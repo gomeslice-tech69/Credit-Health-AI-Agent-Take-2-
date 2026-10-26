@@ -36,6 +36,7 @@ import time
 from datetime import date
 from typing import Any, Dict, List
 
+from screener.applicability import assess
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import compute_all_metrics
 
@@ -118,6 +119,13 @@ def main() -> int:
         sector = history.sector
         if not sector or not history.years:
             print("skipped (no sector reported)")
+            failures.append(ticker)
+            continue
+
+        # A median that mixes banks with manufacturers is not a benchmark.
+        applies = assess(sector, history.industry)
+        if not applies.can_rate:
+            print("skipped (framework not applicable)")
             failures.append(ticker)
             continue
 
