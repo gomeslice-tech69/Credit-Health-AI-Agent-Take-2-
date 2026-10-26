@@ -1229,3 +1229,83 @@ class TestIndustryBriefing(unittest.TestCase):
             self._window(total=200))))
         self.assertIn("not a judgement", text)
         self.assertIn("reporting calendar", text)
+
+
+class TestQuizBank(unittest.TestCase):
+    """The question bank behind the Learn tab. A quiz that marks a correct
+    answer wrong teaches the opposite of what it intends, so the bank is
+    checked structurally."""
+
+    def test_every_answer_index_is_valid(self):
+        from screener.quiz import QUESTIONS
+        for q in QUESTIONS:
+            with self.subTest(prompt=q.prompt[:40]):
+                self.assertTrue(0 <= q.answer < len(q.options))
+
+    def test_every_wrong_option_is_explained(self):
+        """The explanations are the point of the quiz. A wrong answer with no
+        reason attached is a dead end."""
+        from screener.quiz import QUESTIONS
+        for q in QUESTIONS:
+            wrong = set(range(len(q.options))) - {q.answer}
+            with self.subTest(prompt=q.prompt[:40]):
+                self.assertEqual(wrong - set(q.why_wrong), set())
+
+    def test_no_explanation_is_attached_to_the_correct_answer(self):
+        from screener.quiz import QUESTIONS
+        for q in QUESTIONS:
+            with self.subTest(prompt=q.prompt[:40]):
+                self.assertNotIn(q.answer, q.why_wrong)
+
+    def test_options_are_distinct(self):
+        from screener.quiz import QUESTIONS
+        for q in QUESTIONS:
+            with self.subTest(prompt=q.prompt[:40]):
+                self.assertEqual(len(q.options), len(set(q.options)))
+
+    def test_every_question_has_a_known_level(self):
+        from screener.quiz import LEVELS, QUESTIONS
+        for q in QUESTIONS:
+            self.assertIn(q.level, LEVELS)
+
+    def test_all_levels_are_populated(self):
+        from screener.quiz import LEVELS, QUESTIONS
+        for level in LEVELS:
+            self.assertTrue([q for q in QUESTIONS if q.level == level], level)
+
+    def test_selection_never_repeats_a_question(self):
+        """Answering the same question twice in one round teaches nothing."""
+        from screener.quiz import select
+        picked = select(count=10, seed=7)
+        prompts = [q.prompt for q in picked]
+        self.assertEqual(len(prompts), len(set(prompts)))
+
+    def test_selection_returns_fewer_rather_than_padding(self):
+        from screener.quiz import select
+        picked = select(level="Basic", count=99, seed=3)
+        self.assertTrue(picked)
+        self.assertTrue(all(q.level == "Basic" for q in picked))
+
+    def test_filters_are_honoured(self):
+        from screener.quiz import select, topics
+        for topic in topics():
+            got = select(topic=topic, count=3, seed=11)
+            with self.subTest(topic=topic):
+                self.assertTrue(all(q.topic == topic for q in got))
+
+    def test_impossible_filter_returns_empty_rather_than_raising(self):
+        from screener.quiz import select
+        self.assertEqual(select(topic="Nonexistent", count=5), [])
+
+    def test_the_same_seed_gives_the_same_round(self):
+        """A Streamlit rerun must not reshuffle a round in progress."""
+        from screener.quiz import select
+        a = [q.prompt for q in select(count=5, seed=42)]
+        b = [q.prompt for q in select(count=5, seed=42)]
+        self.assertEqual(a, b)
+
+    def test_grade_spans_the_range(self):
+        from screener.quiz import grade
+        self.assertIn("Full marks", grade(5, 5))
+        self.assertTrue(grade(0, 5))
+        self.assertIn("No questions", grade(0, 0))

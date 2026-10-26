@@ -607,6 +607,32 @@ a real headline the first version misclassified.
 reports what has been filed, not what is rumoured. The press half is the
 reverse. Neither alone is the whole picture, which is why both are shown.
 
+## 9f. Learn: a quiz on the concepts the tool uses
+
+A screening tool is only useful to someone who understands what it reports, so
+the application carries a quiz on private credit and restructuring
+fundamentals.
+
+Fifteen questions across four topics — metrics, restructuring, private credit
+and analysis — at three levels. Every question ties to something the tool
+itself computes or displays, so studying the quiz and reading a screen
+reinforce each other. The Ford question asks why a 39x reading is not
+distress; the stress-test question asks why a 20% earnings fall raises
+leverage 25%.
+
+**The explanations carry the teaching, not the scoring.** Each wrong option
+has its own reason attached, because in credit the plausible-but-wrong answer
+is usually the more instructive one. Answering "a 20% EBITDA fall raises
+leverage 20%" is worth more as a lesson than simply being marked wrong: the
+arithmetic is 1 ÷ 0.8, and that asymmetry is the whole reason leverage creates
+fragility.
+
+Twelve tests check the bank structurally — every answer index valid, every
+wrong option explained, no explanation attached to a correct answer, no
+repeats within a round, and a fixed seed so a Streamlit rerun does not
+reshuffle a round in progress. A quiz that marks a correct answer wrong
+teaches the opposite of what it intends.
+
 ## 10. Limitations
 
 Knowing what the tool cannot do is most of understanding it.

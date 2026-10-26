@@ -25,13 +25,14 @@ from __future__ import annotations
 
 import json
 import os
+import random
 from typing import Dict, List, Optional
 
 import altair as alt
 import pandas as pd
 import streamlit as st
 
-from screener import ai, briefing, news
+from screener import ai, briefing, news, quiz
 from screener.data_loader import DataLoadError, load_history
 from screener.metrics import YearMetrics, compute_all_metrics
 from screener.models import FinancialHistory
@@ -2071,6 +2072,120 @@ def render_filings() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Learn
+# ---------------------------------------------------------------------------
+
+def _new_round(level, topic, count):
+    """Start a round. The seed is stored so a rerun does not reshuffle."""
+    seed = random.randrange(1 << 30)
+    st.session_state.quiz = {
+        "questions": quiz.select(level=level, topic=topic, count=count,
+                                 seed=seed),
+        "index": 0, "score": 0, "answered": False, "picked": None,
+        "seed": seed,
+    }
+
+
+def render_learn() -> None:
+    """A quiz on the concepts the screener uses.
+
+    Every question ties to something the tool computes or displays, so the
+    quiz and the screener reinforce each other. The explanations cover why
+    the wrong answers are wrong — in credit, the plausible-but-wrong answer
+    is usually the more instructive one.
+    """
+    st.markdown("### Learn the market")
+    st.caption("Private credit and restructuring fundamentals. Every question "
+               "ties to something this tool computes.")
+
+    setup = st.columns([1, 1, 1, 1])
+    with setup[0]:
+        level = st.selectbox("Level", ["Any"] + quiz.LEVELS, index=0)
+    with setup[1]:
+        topic = st.selectbox("Topic", ["Any"] + quiz.topics(), index=0)
+    with setup[2]:
+        count = st.selectbox("Questions", [3, 5, 10], index=1)
+    with setup[3]:
+        st.write("")
+        start = st.button("New round", use_container_width=True)
+
+    if start or "quiz" not in st.session_state:
+        _new_round(None if level == "Any" else level,
+                   None if topic == "Any" else topic, count)
+
+    state = st.session_state.quiz
+    questions = state["questions"]
+
+    if not questions:
+        st.info("No questions match those filters. Widen the level or topic.")
+        return
+
+    # --- finished ---------------------------------------------------------
+    if state["index"] >= len(questions):
+        score, total = state["score"], len(questions)
+        pct = score / total
+        box = st.success if pct >= 0.8 else st.warning if pct >= 0.5 else st.error
+        box(f"**{score} of {total} correct.** {quiz.grade(score, total)}")
+        if st.button("Go again"):
+            _new_round(None if level == "Any" else level,
+                       None if topic == "Any" else topic, count)
+            st.rerun()
+        return
+
+    question = questions[state["index"]]
+    position = state["index"] + 1
+
+    st.progress(state["index"] / len(questions),
+                text=f"Question {position} of {len(questions)} · "
+                     f"{state['score']} correct so far")
+
+    st.markdown(f"**{question.prompt}**")
+    st.caption(f"{question.topic} · {question.level}")
+
+    picked = st.radio("Choose one", question.options,
+                      index=None, key=f"q_{state['seed']}_{state['index']}",
+                      label_visibility="collapsed",
+                      disabled=state["answered"])
+
+    if not state["answered"]:
+        # Validation: an unanswered question must not be gradeable, or the
+        # reader can skip to the explanation without committing.
+        if st.button("Check answer"):
+            if picked is None:
+                st.error("Pick an answer first.")
+            else:
+                state["picked"] = question.options.index(picked)
+                state["answered"] = True
+                if state["picked"] == question.answer:
+                    state["score"] += 1
+                st.rerun()
+        return
+
+    chosen = state["picked"]
+    if chosen == question.answer:
+        st.success(f"**Correct.** {question.explanation}")
+    else:
+        st.error(f"**Not quite.** You chose: _{question.options[chosen]}_")
+        reason = question.why_wrong.get(chosen)
+        if reason:
+            st.markdown(f"{reason}")
+        st.info(f"**{question.correct_option}** — {question.explanation}")
+
+    with st.expander("Why the other answers are wrong"):
+        for i, option in enumerate(question.options):
+            if i == question.answer or i == chosen:
+                continue
+            st.markdown(f"**{option}** — {question.why_wrong.get(i, '')}")
+
+    label = ("See results" if position == len(questions) else "Next question")
+    if st.button(label):
+        state["index"] += 1
+        state["answered"] = False
+        state["picked"] = None
+        st.rerun()
+
+
+# ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
 
@@ -2242,9 +2357,9 @@ def main() -> None:
     # scrolling past a section perceives far less than one who chose to open
     # it. The tabs also separate two genuinely different tasks: screening one
     # company, and scanning the whole set.
-    tab_labels = ["Company", "Market scan", "Industry watch", "Methodology",
-                  "About"]
-    (company_tab, scan_tab, news_tab, method_tab,
+    tab_labels = ["Company", "Market scan", "Industry watch", "Learn",
+                  "Methodology", "About"]
+    (company_tab, scan_tab, news_tab, learn_tab, method_tab,
      about_tab) = st.tabs(tab_labels)
 
     with company_tab:
@@ -2269,6 +2384,9 @@ def main() -> None:
 
     with news_tab:
         render_news()
+
+    with learn_tab:
+        render_learn()
 
     with method_tab:
         render_methodology()

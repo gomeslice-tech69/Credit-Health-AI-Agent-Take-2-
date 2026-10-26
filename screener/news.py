@@ -338,19 +338,38 @@ STRONG_TERMS = [
     "leveraged buyout", "going concern", "debt restructuring",
     "maturity wall", "credit market", "debt load", "default",
     "collateralized loan", "dip financing", "chapter 7",
+    # Market-level credit language. A headline about the bond market or
+    # spreads is about credit conditions, which is the context the screener
+    # operates in.
+    "bond market", "debt market", "credit spread", "credit spreads",
+    "bond risk", "debt downgrade", "credit rating", "yield spread",
+    "sovereign debt", "borrowing costs", "credit conditions",
+    "debt ceiling", "debt crisis",
 ]
 WEAK_TERMS = [
     "debt", "credit", "lender", "lenders", "loan", "loans", "leverage",
     "refinance", "refinancing", "downgrade", "bond", "bonds", "yield",
-    "buyout", "creditor",
+    "yields", "buyout", "creditor", "spread", "spreads", "sovereign",
+    "issuance", "borrowing", "maturity", "notes", "treasury", "market",
 ]
 
 # Personal-finance advice columns use the same vocabulary as credit reporting
 # and are never relevant here. These phrases are a reliable tell.
 EXCLUDE_PATTERNS = [
-    r"\bmy (husband|wife|son|daughter|mother|father|parents|in-law)",
-    r"\bshould i\b", r"\bhow much should\b", r"\bi'm \d+ and\b",
-    r"\bmy \$[\d,]+\b", r"\bretire(ment)? plan\b", r"\bsign up for\b",
+    # First-person advice columns. These use identical credit vocabulary to
+    # real reporting -- "debt", "loan", "credit card" -- and are never
+    # relevant. The tell is always a personal narrator.
+    r"\bmy (husband|wife|son|daughter|mother|father|parents|in-law|sister|brother)",
+    r"\bi(?:'m| am) \d+\b", r"\bi(?:'m| am) a\b",
+    r"\bi want to\b", r"\bi have \$", r"\bwe have a \$",
+    r"\bshould i\b", r"\bcan i (afford|retire|claim)\b",
+    r"\bhow (much|do) (should|i)\b",
+    r"\bmy \$[\d,]+\b", r"\bmy (savings|pension|401|ira|mortgage|salary)\b",
+    r"\bcredit[- ]card debt\b", r"\bcredit score\b",
+    r"\bretire(ment)? (plan|account|savings)\b",
+    r"\bsign up for\b", r"\bnewsletter\b",
+    r"\bdear (quentin|penny|moneyist)\b", r"\bmoneyist\b",
+    r"\bpersonal finance\b", r"\bmy financial adviser\b",
 ]
 
 _STRONG_RE = re.compile(
