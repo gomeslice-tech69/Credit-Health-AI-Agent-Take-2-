@@ -88,6 +88,60 @@ BENCHMARK_TICKERS = [
     # Financials
     "JPM", "BAC", "WFC", "C", "GS", "MS", "USB", "PNC", "TFC", "COF",
     "AXP", "SCHW", "BLK", "BX", "KKR", "APO", "ARES", "CG",
+
+    # --- second tranche: mid caps and wider sector coverage --------------
+    # Transport and logistics
+    "ALGT", "SKYW", "MATX", "XPO", "SAIA", "WERN", "KNX", "LSTR", "GXO",
+    "HUBG", "ARCB",
+    # Autos, suppliers, dealers
+    "AXL", "ADNT", "DAN", "MOD", "VC", "GPC", "AAP", "ORLY", "AZO", "LAD",
+    "AN", "PAG", "KMX", "URI",
+    # Travel, leisure, restaurants
+    "EXPE", "BKNG", "ABNB", "TNL", "HGV", "VAC", "PLNT", "FUN", "CHDN",
+    "DKNG", "PENN", "BYD", "RRR", "TXRH", "EAT", "CAKE", "BLMN", "JACK",
+    "PZZA", "SHAK", "WING", "CBRL",
+    # Retail, apparel, e-commerce
+    "BURL", "FIVE", "OLLI", "CRI", "LEVI", "PVH", "RL", "VFC", "HBI", "UAA",
+    "NKE", "DECK", "CROX", "SKX", "WSM", "RH", "W", "CHWY", "ETSY", "EBAY",
+    "SIG", "DKS",
+    # Media, telecom, entertainment
+    "LUMN", "FYBR", "IRDM", "AMC", "CNK", "IMAX", "ROKU", "SPOT", "WMG",
+    "MSGE", "MSGS", "TKO",
+    # Technology, software, semis
+    "CSCO", "ANET", "JNPR", "MSI", "ZBRA", "KEYS", "TER", "LRCX", "AMAT",
+    "KLAC", "ON", "MCHP", "SWKS", "QRVO", "MPWR", "ENTG", "SANM", "FLEX",
+    "JBL", "CDW", "NTAP", "PSTG", "BOX", "DBX", "TWLO", "OKTA", "DDOG",
+    "MDB", "NET", "ZS", "CRWD", "PANW", "FTNT", "TEAM", "WDAY", "VEEV",
+    "HUBS", "DOCU", "PCOR",
+    # Food, beverage, household
+    "ADM", "BG", "INGR", "DAR", "TSN", "HRL", "POST", "LW", "FLO", "UTZ",
+    "SMPL", "CELH", "MNST", "KDP", "COKE", "USFD", "PFGC", "SYY", "CHD",
+    "CLX", "ENR", "COTY",
+    # Healthcare, pharma, devices, providers
+    "VTRS", "TEVA", "JAZZ", "ALKS", "INCY", "EXEL", "HALO", "NBIX", "SRPT",
+    "IONS", "BMRN", "UTHR", "OGN", "PRGO", "ELAN", "ZTS", "IDXX", "RMD",
+    "STE", "BDX", "SYK", "BSX", "EW", "ISRG", "PODD", "DXCM", "HCA", "THC",
+    "UHS", "CYH", "EHC", "SEM", "ACHC", "DVA", "OMI", "CAH", "COR", "MOH",
+    "CNC", "ELV",
+    # Industrials, aerospace, defence, machinery
+    "TXT", "HII", "LDOS", "BAH", "CACI", "SAIC", "KBR", "ACM", "PWR", "MTZ",
+    "DY", "FIX", "EME", "AOS", "LII", "TT", "CARR", "JCI", "IR", "XYL",
+    "FLS", "PNR", "GGG", "NDSN", "AME", "ROK", "HWM", "SPR", "HEI", "TDG",
+    "CW", "ATI", "CRS", "WY",
+    # Energy
+    "EOG", "HES", "APA", "CTRA", "EQT", "AR", "RRC", "NOV", "FTI", "CHX",
+    "TDW", "RIG", "VAL", "HP", "PTEN", "LNG", "TRGP", "ET", "EPD", "PAA",
+    # Utilities
+    "DTE", "WEC", "ES", "FE", "CMS", "CNP", "NI", "PNW", "AES", "LNT",
+    "EVRG", "ATO", "OGE", "POR",
+    # Materials, metals, chemicals, packaging
+    "X", "CLF", "STLD", "RS", "CMC", "ATKR", "VMC", "MLM", "EXP", "CE",
+    "EMN", "ALB", "FMC", "HUN", "OLN", "WLK", "AVNT", "ASH", "IFF", "ECL",
+    "APD", "LIN", "SMG", "SEE", "PKG", "IP", "GPK", "SON",
+    # Real estate
+    "DLR", "EQIX", "PSA", "EXR", "CUBE", "AVB", "EQR", "MAA", "UDR", "ESS",
+    "CPT", "INVH", "AMH", "ELS", "SUI", "REG", "FRT", "KIM", "BRX", "MAC",
+    "OHI", "MPW", "SBRA", "ARE", "KRC", "HIW", "SLG", "VNO",
 ]
 
 # Metrics the comparison covers, and which direction is worse. Stating this

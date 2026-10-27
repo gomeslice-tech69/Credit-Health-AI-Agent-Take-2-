@@ -2514,7 +2514,7 @@ def render_about() -> None:
         st.metric("Data sources", "3")
         st.caption("Yahoo Finance, SEC EDGAR XBRL, offline files")
     with cols[1]:
-        st.metric("Benchmark set", "211")
+        st.metric("Benchmark set", "484")
         st.caption("Companies across 11 sectors")
     with cols[2]:
         st.metric("Unit tests", "106")
@@ -2530,7 +2530,7 @@ def render_about() -> None:
         "- **It refuses.** Negative EBITDA produces *not meaningful* rather "
         "than a flattering negative multiple. Untagged debt reports as "
         "unavailable rather than zero.\n"
-        "- **One ruler.** All 211 benchmark companies meet the same "
+        "- **One ruler.** All 484 benchmark companies meet the same "
         "thresholds, so the rankings compare.\n"
         "- **It shows its work.** Every rating point maps to a written "
         "threshold; every EDGAR figure names the XBRL tag it came from.")
